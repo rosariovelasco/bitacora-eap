@@ -133,6 +133,12 @@
   tfoot td{padding:12px 14px;font-weight:700;border-top:2px solid var(--line);font-family:'IBM Plex Mono',monospace;}
   tfoot td.label{font-family:'Work Sans',sans-serif;}
 
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+  .buscador{position:relative;flex:1;min-width:220px;}
+  .buscador svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--ink-faint);pointer-events:none;}
+  .buscador input{padding-left:40px;}
+  .btn-auto{width:auto !important;padding-left:18px;padding-right:18px;}
+  .letra{font-family:'Fraunces',serif;font-size:1.05rem;color:var(--accent-strong);margin:18px 2px 6px;font-weight:600;}
   .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
   @media (max-width:560px){.stat-row{grid-template-columns:1fr;}}
   .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px 16px;box-shadow:var(--shadow);}
@@ -236,9 +242,11 @@ var state = {
   formAtencion: { fecha: hoyLocal(), hora: horaAhora(), psicologoId:'', empresaId:'', pacienteId:'' },
   editandoAtencionId: null,
   formEditar: { fecha:'', hora:'', psicologoId:'', empresaId:'', pacienteId:'' },
-  formNuevoPsicologo: { nombre:'', profesion:'', rut:'', telefono:'', tipoTarifa:'clp', tarifa:'', vigenteDesde: hoyLocal() },
+  formNuevoPsicologo: nuevoProfesionalVacio(),
+  mostrarAltaProf: false,
+  busq: { profesionales:'' },
   editandoPsicologoId: null,
-  formPsicologo: { nombre:'', profesion:'', rut:'', telefono:'', banco:'', tipoCuenta:'', numeroCuenta:'', email:'' },
+  formPsicologo: { nombre:'', apellidos:'', profesion:'', rut:'', telefono:'', banco:'', tipoCuenta:'', numeroCuenta:'', email:'' },
   editandoTarifaPsicologoId: null, formTarifaModo: 'editar',
   formTarifa: { tipo:'clp', tarifa:'', vigenteDesde: hoyLocal() },
   formNuevaEmpresa: { nombre:'' },
@@ -286,10 +294,33 @@ function activosDe(lista){ return lista.filter(function(x){ return x.activo !== 
 function todosDe(lista){ return lista.slice().sort(ordenNombre); }
 function porId(lista, id){ for(var i=0;i<lista.length;i++){ if(lista[i].id===id) return lista[i]; } return null; }
 
+function nuevoProfesionalVacio(){
+  return { nombre:'', apellidos:'', profesion:'', rut:'', telefono:'', email:'', banco:'', tipoCuenta:'', numeroCuenta:'', tipoTarifa:'clp', tarifa:'', vigenteDesde: hoyLocal() };
+}
+function norm(x){ return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+function partesNombre(p){
+  var nom = (p.nombre||'').trim();
+  var i = nom.indexOf(',');
+  if(i !== -1) return { nombres:nom.slice(i+1).trim(), apellidos:nom.slice(0,i).trim() };
+  var w = nom.split(/\s+/).filter(Boolean);
+  if(w.length >= 3) return { nombres:w.slice(0,-2).join(' '), apellidos:w.slice(-2).join(' ') };
+  if(w.length === 2) return { nombres:w[0], apellidos:w[1] };
+  return { nombres:nom, apellidos:'' };
+}
+function guardarNombre(nombres, apellidos){ return apellidos + ', ' + nombres; }
+function nombreCompleto(p){ var x = partesNombre(p); return (x.nombres + ' ' + x.apellidos).trim(); }
+function etiquetaPsico(p){ var x = partesNombre(p); return x.apellidos ? x.apellidos + ', ' + x.nombres : x.nombres; }
+function ordenPsico(a, b){
+  var x = partesNombre(a), y = partesNombre(b);
+  return (x.apellidos || x.nombres).localeCompare(y.apellidos || y.nombres, 'es', { sensitivity:'base' }) ||
+         x.nombres.localeCompare(y.nombres, 'es', { sensitivity:'base' });
+}
+function psicosTodos(){ return state.psicologos.slice().sort(ordenPsico); }
+function psicosActivos(){ return psicosTodos().filter(function(p){ return p.activo !== false; }); }
 function psicoById(id){ return porId(state.psicologos, id); }
 function empresaById(id){ return porId(state.empresas, id); }
 function pacienteById(id){ return porId(state.pacientes, id); }
-function nombrePsico(a){ var p = psicoById(a.psicologoId); return p ? p.nombre : (a.psicologoNombre || '(profesional eliminado)'); }
+function nombrePsico(a){ var p = psicoById(a.psicologoId); return p ? nombreCompleto(p) : (a.psicologoNombre || '(profesional eliminado)'); }
 function nombreEmpresaRef(o){ var e = empresaById(o.empresaId); return e ? e.nombre : (o.empresaNombre || '(empresa eliminada)'); }
 function nombrePacienteRef(a){ var p = pacienteById(a.pacienteId); return p ? p.nombre : (a.pacienteNombre || '(paciente eliminado)'); }
 function pacientesDeEmpresa(empresaId, soloActivos){
@@ -336,7 +367,7 @@ function resumenPsicologo(p, mes){
   };
 }
 function filasLiquidacion(mes){
-  return todosDe(state.psicologos).map(function(p){ return resumenPsicologo(p, mes); })
+  return psicosTodos().map(function(p){ return resumenPsicologo(p, mes); })
     .filter(function(r){ return r.cantidad > 0 || r.p.activo !== false; });
 }
 
@@ -373,8 +404,8 @@ function crearBackendDemo(){
   var cfg = { retencionPct:15.25, moneda:'$', valorUF:40935, emisor:'Programa EAP' };
   var mes = mesActual();
   mem.psicologos = [
-    { id:'d1', nombre:'Andrea Claro', profesion:'Psicóloga', rut:'12.345.678-9', telefono:'+56 9 1111 2222', activo:true, banco:'Banco Estado', tipoCuenta:'Cuenta RUT', numeroCuenta:'12345678', email:'andrea@correo.cl' },
-    { id:'d2', nombre:'Rosario Velasco', profesion:'Terapeuta ocupacional', rut:'13.456.789-0', telefono:'', activo:true, banco:'', tipoCuenta:'', numeroCuenta:'', email:'' }
+    { id:'d1', nombre:'Claro, Andrea', profesion:'Psicóloga', rut:'12.345.678-9', telefono:'+56 9 1111 2222', activo:true, banco:'Banco Estado', tipoCuenta:'Cuenta RUT', numeroCuenta:'12345678', email:'andrea@correo.cl' },
+    { id:'d2', nombre:'Velasco, Rosario', profesion:'Terapeuta ocupacional', rut:'13.456.789-0', telefono:'', activo:true, banco:'', tipoCuenta:'', numeroCuenta:'', email:'' }
   ];
   mem.empresas = [ { id:'e1', nombre:'Copec', activo:true }, { id:'e2', nombre:'Puntopersonal', activo:true } ];
   mem.pacientes = [
@@ -580,9 +611,9 @@ function renderTab(){
     default: return renderLiquidacion();
   }
 }
-function opcionesSelect(lista, valor, vacio){
+function opcionesSelect(lista, valor, vacio, etiqueta){
   return '<option value="">'+esc(vacio)+'</option>' + lista.map(function(x){
-    return '<option value="'+x.id+'"'+(valor===x.id?' selected':'')+'>'+esc(x.nombre)+'</option>';
+    return '<option value="'+x.id+'"'+(valor===x.id?' selected':'')+'>'+esc(etiqueta ? etiqueta(x) : x.nombre)+'</option>';
   }).join('');
 }
 
@@ -625,7 +656,7 @@ function renderLiquidacion(){
     ? '<div class="empty"><span class="big">🧾</span>Aún no hay profesionales ni atenciones. Empieza en la pestaña Profesionales.</div>'
     : '<div class="table-wrap"><table><thead><tr><th>Profesional</th><th class="num">N° atenciones</th><th class="num">Tarifa unit.</th><th class="num">Bruto</th><th class="num">Retención</th><th class="num">Líquido</th><th></th></tr></thead><tbody>' +
       filas.map(function(r){
-        return '<tr><td><button class="psico-link" type="button" data-action="ir-a-atenciones" data-id="'+r.p.id+'" title="Ver sus atenciones">'+esc(r.p.nombre)+'</button>'+(r.p.activo===false?' <span class="hint">(inactivo)</span>':'')+'</td>' +
+        return '<tr><td><button class="psico-link" type="button" data-action="ir-a-atenciones" data-id="'+r.p.id+'" title="Ver sus atenciones">'+esc(etiquetaPsico(r.p))+'</button>'+(r.p.activo===false?' <span class="hint">(inactivo)</span>':'')+'</td>' +
           '<td class="num">'+r.cantidad+'</td><td class="num">'+fmtTarifaUnitaria(r,moneda)+'</td>' +
           '<td class="num">'+fmtMoneda(r.bruto,moneda)+'</td><td class="num">'+fmtMoneda(r.retencion,moneda)+'</td><td class="num">'+fmtMoneda(r.liquido,moneda)+'</td>' +
           '<td><button class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem;" data-action="abrir-reporte" data-id="'+r.p.id+'" type="button">Reporte</button></td></tr>';
@@ -641,7 +672,7 @@ function exportarResumen(){
   var head = ['Profesional','Profesión','RUT','Banco','Tipo de cuenta','N° de cuenta','Email','N° atenciones','Tarifa pactada','Bruto','Retención %','Retención $','Líquido a transferir'];
   var rows = filas.map(function(r){
     var p = r.p;
-    return [p.nombre, p.profesion, p.rut, p.banco, p.tipoCuenta, p.numeroCuenta, p.email, r.cantidad, r.tarifaRepr ? textoTarifa(r.tarifaRepr, state.config.moneda) : '', r.bruto, r.retPct, r.retencion, r.liquido];
+    return [nombreCompleto(p), p.profesion, p.rut, p.banco, p.tipoCuenta, p.numeroCuenta, p.email, r.cantidad, r.tarifaRepr ? textoTarifa(r.tarifaRepr, state.config.moneda) : '', r.bruto, r.retPct, r.retencion, r.liquido];
   });
   var tot = function(k){ return filas.reduce(function(s,f){ return s + f[k]; }, 0); };
   rows.push(['TOTAL','','','','','','',tot('cantidad'),'',tot('bruto'),'',tot('retencion'),tot('liquido')]);
@@ -650,9 +681,9 @@ function exportarResumen(){
 function exportarDetalleMes(){
   var head = ['Fecha','Hora','Profesional','Empresa','Paciente','Tarifa pactada','Valor (pesos)'];
   var rows = [];
-  todosDe(state.psicologos).forEach(function(p){
+  psicosTodos().forEach(function(p){
     itemsPsicologo(p.id, state.mes).forEach(function(i){
-      rows.push([fmtFecha(i.a.fecha), i.a.hora, p.nombre, nombreEmpresaRef(i.a), nombrePacienteRef(i.a), i.t ? textoTarifa(i.t, state.config.moneda) : 'SIN TARIFA', i.valor]);
+      rows.push([fmtFecha(i.a.fecha), i.a.hora, nombreCompleto(p), nombreEmpresaRef(i.a), nombrePacienteRef(i.a), i.t ? textoTarifa(i.t, state.config.moneda) : 'SIN TARIFA', i.valor]);
     });
   });
   descargar('detalle_' + state.mes + '.csv', csvDe([head].concat(rows)));
@@ -683,7 +714,7 @@ function renderReporte(){
       (state.config.emisor ? '<div class="emisor">'+esc(state.config.emisor)+'</div>' : '') +
       '<h2>Resumen de atenciones · '+esc(mesLabel(state.mes))+'</h2>' +
       '<div class="meta">' +
-        '<div><b>Profesional</b>'+esc(p.nombre)+'</div>' +
+        '<div><b>Profesional</b>'+esc(nombreCompleto(p))+'</div>' +
         '<div><b>Profesión</b>'+esc(p.profesion||'—')+'</div>' +
         '<div><b>RUT</b>'+esc(p.rut||'—')+'</div>' +
         '<div><b>Período</b>'+esc(mesLabel(state.mes))+'</div>' +
@@ -709,7 +740,7 @@ function csvReporte(){
   var pad = state.incluirPacientes ? 4 : 3;
   function fila(etq, val){ var f = []; for(var k=0;k<pad;k++) f.push(''); f.push(etq); f.push(val); return f; }
   rows.push(fila('Monto bruto', r.bruto), fila('Retención ' + r.retPct + '%', r.retencion), fila('Líquido', r.liquido));
-  descargar('reporte_' + nombreArchivo(p.nombre) + '_' + state.mes + '.csv', csvDe([head].concat(rows)));
+  descargar('reporte_' + nombreArchivo(nombreCompleto(p)) + '_' + state.mes + '.csv', csvDe([head].concat(rows)));
 }
 
 // ---------- Atenciones ----------
@@ -729,12 +760,12 @@ function atencionesFiltradas(){
 function selectoresAtencion(form, prefijo){
   var f = state[form], todos = form === 'formEditar';
   var pacs = f.empresaId ? pacientesDeEmpresa(f.empresaId, !todos) : [];
-  var psicos = todos ? todosDe(state.psicologos) : activosDe(state.psicologos);
+  var psicos = todos ? psicosTodos() : psicosActivos();
   var emps = todos ? todosDe(state.empresas) : activosDe(state.empresas);
   return '<div class="field-row cols-3" style="margin-top:0;">' +
       '<div><label for="'+prefijo+'-fecha">Fecha</label><input type="date" id="'+prefijo+'-fecha" data-form="'+form+'" data-field="fecha" value="'+esc(f.fecha)+'" required></div>' +
       '<div><label for="'+prefijo+'-hora">Hora</label><input type="time" id="'+prefijo+'-hora" data-form="'+form+'" data-field="hora" value="'+esc(f.hora)+'" required></div>' +
-      '<div><label for="'+prefijo+'-psico">Profesional</label><select id="'+prefijo+'-psico" data-form="'+form+'" data-field="psicologoId" required>'+opcionesSelect(psicos, f.psicologoId, 'Selecciona')+'</select></div>' +
+      '<div><label for="'+prefijo+'-psico">Profesional</label><select id="'+prefijo+'-psico" data-form="'+form+'" data-field="psicologoId" required>'+opcionesSelect(psicos, f.psicologoId, 'Selecciona', etiquetaPsico)+'</select></div>' +
     '</div>' +
     '<div class="field-row">' +
       '<div><label for="'+prefijo+'-emp">Empresa</label><select id="'+prefijo+'-emp" data-form="'+form+'" data-field="empresaId" required>'+opcionesSelect(emps, f.empresaId, 'Selecciona una empresa')+'</select></div>' +
@@ -757,7 +788,7 @@ function renderAtenciones(){
 
   var filtros = '<div class="filtros">' +
     '<div class="field-row cols-3">' +
-      '<div><label for="fc-psico">Profesional</label><select id="fc-psico" data-form="filtros" data-field="psicologoId">'+opcionesSelect(todosDe(state.psicologos), f.psicologoId, 'Todos')+'</select></div>' +
+      '<div><label for="fc-psico">Profesional</label><select id="fc-psico" data-form="filtros" data-field="psicologoId">'+opcionesSelect(psicosTodos(), f.psicologoId, 'Todos', etiquetaPsico)+'</select></div>' +
       '<div><label for="fc-emp">Empresa</label><select id="fc-emp" data-form="filtros" data-field="empresaId">'+opcionesSelect(todosDe(state.empresas), f.empresaId, 'Todas')+'</select></div>' +
       '<div><label for="fc-mes">Mes</label><input type="month" id="fc-mes" data-form="filtros" data-field="mes" value="'+esc(f.mes)+'"></div>' +
     '</div>' +
@@ -797,7 +828,7 @@ async function onGuardarAtencion(){
   var ps = psicoById(f.psicologoId), em = empresaById(f.empresaId), pa = pacienteById(f.pacienteId);
   if(!f.fecha || !f.hora || !ps || !em || !pa){ mostrarError('Completa fecha, hora, profesional, empresa y paciente.'); return; }
   var ok = await conError(async function(){
-    await state.backend.agregar('atenciones', { psicologoId:ps.id, psicologoNombre:ps.nombre, fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
+    await state.backend.agregar('atenciones', { psicologoId:ps.id, psicologoNombre:nombreCompleto(ps), fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
     await recargar('atenciones');
     return true;
   }, 'No se pudo guardar');
@@ -808,7 +839,7 @@ async function onActualizarAtencion(id){
   var ps = psicoById(f.psicologoId), em = empresaById(f.empresaId), pa = pacienteById(f.pacienteId);
   if(!f.fecha || !f.hora || !ps || !em || !pa){ mostrarError('Completa todos los campos.'); return; }
   var ok = await conError(async function(){
-    await state.backend.actualizar('atenciones', id, { psicologoId:ps.id, psicologoNombre:ps.nombre, fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
+    await state.backend.actualizar('atenciones', id, { psicologoId:ps.id, psicologoNombre:nombreCompleto(ps), fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
     await recargar('atenciones');
     return true;
   }, 'No se pudo actualizar');
@@ -820,32 +851,65 @@ function resumenBanco(p){
   var partes = [p.banco, p.tipoCuenta, p.numeroCuenta ? 'N° ' + p.numeroCuenta : '', p.rut ? 'RUT ' + p.rut : '', p.email].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Sin datos de transferencia';
 }
+function camposProfesional(form, pre){
+  var f = state[form];
+  function inp(id, campo, label, ph, extra){
+    return '<div><label for="'+pre+'-'+id+'">'+label+'</label><input type="text" id="'+pre+'-'+id+'" data-form="'+form+'" data-field="'+campo+'" value="'+esc(f[campo])+'" '+(ph?'placeholder="'+ph+'" ':'')+(extra||'')+'></div>';
+  }
+  return LISTA_PROFESIONES +
+    '<div class="field-row" style="margin-top:0;">' + inp('nombre','nombre','Nombres','Ej: María José','required') + inp('apellidos','apellidos','Apellidos','Ej: Pérez González','required') + '</div>' +
+    '<div class="field-row cols-3">' +
+      inp('prof','profesion','Profesión','Ej: Psicóloga','list="lista-profesiones" required') + inp('rut','rut','RUT','12.345.678-9') + inp('tel','telefono','Teléfono (opcional)','') +
+    '</div>' +
+    '<div class="section-label">Datos de transferencia</div>' +
+    '<div class="field-row cols-3" style="margin-top:0;">' +
+      inp('banco','banco','Banco','Ej: Banco Estado') +
+      '<div><label for="'+pre+'-tcta">Tipo de cuenta</label><select id="'+pre+'-tcta" data-form="'+form+'" data-field="tipoCuenta"><option value="">Selecciona</option>'+TIPOS_CUENTA.map(function(t){ return '<option value="'+t+'"'+(f.tipoCuenta===t?' selected':'')+'>'+t+'</option>'; }).join('')+'</select></div>' +
+      inp('ncta','numeroCuenta','N° de cuenta','') +
+    '</div>' +
+    '<div style="margin-top:12px;">' + inp('email','email','Email (para el comprobante)','tu@correo.cl') + '</div>';
+}
 function renderPsicologos(){
   var np = state.formNuevoPsicologo, moneda = state.config.moneda;
-  var alta = '<div class="card" style="margin-bottom:16px;"><form data-action="agregar-psicologo">' +
-    '<div class="section-label" style="margin-top:0;">Agregar profesional</div>' +
-    LISTA_PROFESIONES +
-    '<div class="field-row" style="margin-top:0;">' +
-      '<div><label for="np-nombre">Nombre</label><input type="text" id="np-nombre" data-form="formNuevoPsicologo" data-field="nombre" value="'+esc(np.nombre)+'" required></div>' +
-      '<div><label for="np-prof">Profesión</label><input type="text" id="np-prof" list="lista-profesiones" data-form="formNuevoPsicologo" data-field="profesion" value="'+esc(np.profesion)+'" placeholder="Ej: Psicóloga" required></div>' +
-    '</div>' +
-    '<div class="field-row">' +
-      '<div><label for="np-rut">RUT</label><input type="text" id="np-rut" data-form="formNuevoPsicologo" data-field="rut" value="'+esc(np.rut)+'" placeholder="12.345.678-9"></div>' +
-      '<div><label for="np-tel">Teléfono (opcional)</label><input type="text" id="np-tel" data-form="formNuevoPsicologo" data-field="telefono" value="'+esc(np.telefono)+'"></div>' +
-    '</div>' +
-    '<div class="field-row cols-3">' +
-      '<div><label for="np-tipo">Tipo de tarifa</label><select id="np-tipo" data-form="formNuevoPsicologo" data-field="tipoTarifa"><option value="clp"'+(np.tipoTarifa!=='uf'?' selected':'')+'>Monto fijo (pesos)</option><option value="uf"'+(np.tipoTarifa==='uf'?' selected':'')+'>UF por atención</option></select></div>' +
-      '<div><label for="np-tarifa">Tarifa por atención</label><input type="text" inputmode="decimal" id="np-tarifa" data-form="formNuevoPsicologo" data-field="tarifa" value="'+esc(np.tarifa)+'" placeholder="0" required></div>' +
-      '<div><label for="np-vig">Tarifa vigente desde</label><input type="date" id="np-vig" data-form="formNuevoPsicologo" data-field="vigenteDesde" value="'+esc(np.vigenteDesde)+'" required></div>' +
-    '</div>' +
-    '<div class="hint">Si el acuerdo rige desde antes, pon la fecha real: las atenciones anteriores a esa fecha quedan sin tarifa. Los datos de transferencia se completan con "Editar datos".</div>' +
-    '<div class="btn-row"><button type="submit" class="btn btn-primary">Agregar</button></div></form></div>';
+  var q = norm(state.busq.profesionales.trim());
+  var todos = psicosTodos();
+  var lista = !q ? todos : todos.filter(function(p){
+    return norm([nombreCompleto(p), p.profesion, p.rut].join(' ')).indexOf(q) !== -1;
+  });
 
-  var lista = todosDe(state.psicologos);
-  var cuerpo = lista.length === 0 ? '<div class="empty"><span class="big">🧑‍⚕️</span>Aún no has agregado profesionales.</div>' : lista.map(function(p){
+  var lupa = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  var barra = '<div class="toolbar">' +
+    '<div class="buscador">'+lupa+'<input type="text" id="busq-prof" data-form="busq" data-field="profesionales" value="'+esc(state.busq.profesionales)+'" placeholder="Buscar por nombre, apellido, profesión o RUT" aria-label="Buscar profesional"></div>' +
+    '<button class="btn btn-primary btn-auto" data-action="toggle-alta-profesional" type="button">'+(state.mostrarAltaProf ? 'Cerrar' : '+ Agregar profesional')+'</button>' +
+  '</div>';
+
+  var alta = '';
+  if(state.mostrarAltaProf){
+    alta = '<div class="card" style="margin-bottom:16px;"><form data-action="agregar-psicologo">' +
+      '<div class="section-label" style="margin-top:0;">Nuevo profesional</div>' +
+      camposProfesional('formNuevoPsicologo', 'np') +
+      '<div class="section-label">Tarifa</div>' +
+      '<div class="field-row cols-3" style="margin-top:0;">' +
+        '<div><label for="np-tipo">Tipo de tarifa</label><select id="np-tipo" data-form="formNuevoPsicologo" data-field="tipoTarifa"><option value="clp"'+(np.tipoTarifa!=='uf'?' selected':'')+'>Monto fijo (pesos)</option><option value="uf"'+(np.tipoTarifa==='uf'?' selected':'')+'>UF por atención</option></select></div>' +
+        '<div><label for="np-tarifa">Tarifa por atención</label><input type="text" inputmode="decimal" id="np-tarifa" data-form="formNuevoPsicologo" data-field="tarifa" value="'+esc(np.tarifa)+'" placeholder="0" required></div>' +
+        '<div><label for="np-vig">Tarifa vigente desde</label><input type="date" id="np-vig" data-form="formNuevoPsicologo" data-field="vigenteDesde" value="'+esc(np.vigenteDesde)+'" required></div>' +
+      '</div>' +
+      '<div class="hint">Si el acuerdo rige desde antes, pon la fecha real: las atenciones anteriores a esa fecha quedan sin tarifa.</div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="toggle-alta-profesional">Cancelar</button><button type="submit" class="btn btn-primary">Guardar profesional</button></div></form></div>';
+  }
+
+  var letraActual = '';
+  var cuerpo;
+  if(todos.length === 0) cuerpo = '<div class="empty"><span class="big">🧑‍⚕️</span>Aún no has agregado profesionales. Usa el botón "+ Agregar profesional".</div>';
+  else if(lista.length === 0) cuerpo = '<div class="empty"><span class="big">🔍</span>No hay profesionales que coincidan con "'+esc(state.busq.profesionales)+'".</div>';
+  else cuerpo = lista.map(function(p){
+    var partes = partesNombre(p);
+    var inicial = norm((partes.apellidos || partes.nombres).charAt(0)).toUpperCase();
+    var encabezado = '';
+    if(!q && todos.length > 6 && inicial !== letraActual){ letraActual = inicial; encabezado = '<div class="letra">'+esc(inicial)+'</div>'; }
     var actual = tarifaActual(p.id), historial = historialTarifas(p.id);
     var resumen = actual ? textoTarifa(actual, moneda) + ' · desde ' + fmtFecha(actual.vigenteDesde) : 'Sin tarifa asignada';
-    var fila = '<div class="list-row'+(p.activo===false?' inactivo':'')+'"><div class="info"><div class="nombre">'+esc(p.nombre)+'</div>' +
+    var fila = '<div class="list-row'+(p.activo===false?' inactivo':'')+'"><div class="info"><div class="nombre">'+esc(etiquetaPsico(p))+'</div>' +
       '<div class="tel">'+esc(p.profesion || 'Sin profesión indicada')+'</div><div class="tel">'+esc(resumen)+'</div><div class="tel">'+esc(resumenBanco(p))+'</div></div>' +
       '<button class="btn btn-secondary" data-action="abrir-editor-tarifa" data-id="'+p.id+'" type="button">'+(actual?'Editar tarifa':'Agregar tarifa')+'</button>' +
       '<button class="btn btn-secondary" data-action="editar-psicologo" data-id="'+p.id+'" type="button">Editar datos</button>' +
@@ -853,23 +917,7 @@ function renderPsicologos(){
       '<button class="btn btn-danger" data-action="eliminar-psicologo" data-id="'+p.id+'" type="button">Eliminar</button></div>';
     var panel = '';
     if(state.editandoPsicologoId === p.id){
-      var fp = state.formPsicologo;
-      panel += '<div class="sub-panel"><form data-action="guardar-psicologo" data-id="'+p.id+'">' +
-        '<div class="field-row" style="margin-top:0;">' +
-          '<div><label for="ep-nombre">Nombre</label><input type="text" id="ep-nombre" data-form="formPsicologo" data-field="nombre" value="'+esc(fp.nombre)+'" required></div>' +
-          '<div><label for="ep-prof">Profesión</label><input type="text" id="ep-prof" list="lista-profesiones" data-form="formPsicologo" data-field="profesion" value="'+esc(fp.profesion)+'" placeholder="Ej: Psicóloga"></div>' +
-        '</div>' +
-        '<div class="field-row">' +
-          '<div><label for="ep-rut">RUT</label><input type="text" id="ep-rut" data-form="formPsicologo" data-field="rut" value="'+esc(fp.rut)+'"></div>' +
-          '<div><label for="ep-tel">Teléfono</label><input type="text" id="ep-tel" data-form="formPsicologo" data-field="telefono" value="'+esc(fp.telefono)+'"></div>' +
-        '</div>' +
-        '<div class="section-label">Datos de transferencia</div>' +
-        '<div class="field-row cols-3" style="margin-top:0;">' +
-          '<div><label for="ep-banco">Banco</label><input type="text" id="ep-banco" data-form="formPsicologo" data-field="banco" value="'+esc(fp.banco)+'" placeholder="Ej: Banco Estado"></div>' +
-          '<div><label for="ep-tcta">Tipo de cuenta</label><select id="ep-tcta" data-form="formPsicologo" data-field="tipoCuenta"><option value="">Selecciona</option>'+TIPOS_CUENTA.map(function(t){ return '<option value="'+t+'"'+(fp.tipoCuenta===t?' selected':'')+'>'+t+'</option>'; }).join('')+'</select></div>' +
-          '<div><label for="ep-ncta">N° de cuenta</label><input type="text" id="ep-ncta" data-form="formPsicologo" data-field="numeroCuenta" value="'+esc(fp.numeroCuenta)+'"></div>' +
-        '</div>' +
-        '<label for="ep-email">Email (para el comprobante)</label><input type="text" id="ep-email" data-form="formPsicologo" data-field="email" value="'+esc(fp.email)+'">' +
+      panel += '<div class="sub-panel"><form data-action="guardar-psicologo" data-id="'+p.id+'">' + camposProfesional('formPsicologo', 'ep') +
         '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-psicologo">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></div>';
     }
     if(state.editandoTarifaPsicologoId === p.id) panel += renderEditorTarifa(p, actual);
@@ -878,9 +926,11 @@ function renderPsicologos(){
         return esc(textoTarifa(t, moneda)) + ' desde ' + fmtFecha(t.vigenteDesde) + ' <button class="btn-ghost" style="border:none;background:none;cursor:pointer;padding:0 4px;font-size:.72rem;color:var(--ink-muted);" data-action="eliminar-tarifa" data-id="'+t.id+'" type="button">eliminar</button>';
       }).join(' · ') + '</div>';
     }
-    return '<div class="stack" style="gap:8px;">' + fila + panel + '</div>';
+    return encabezado + '<div class="stack" style="gap:8px;margin-bottom:10px;">' + fila + panel + '</div>';
   }).join('');
-  return '<div class="wrap">' + alta + '<div class="stack">' + cuerpo + '</div></div>';
+
+  var contador = todos.length ? '<div class="count-tag" style="margin:0 2px 8px;">'+(q ? lista.length + ' de ' + todos.length : todos.length)+' profesional'+((q ? lista.length : todos.length)===1?'':'es')+' · orden alfabético por apellido</div>' : '';
+  return '<div class="wrap">' + barra + alta + contador + cuerpo + '</div>';
 }
 function renderEditorTarifa(p, actual){
   var ft = state.formTarifa, moneda = state.config.moneda;
@@ -906,21 +956,21 @@ function renderEditorTarifa(p, actual){
     '<div style="margin-top:10px;"><button type="button" class="btn btn-ghost" data-action="modo-programar-tarifa" data-id="'+p.id+'">¿Rige solo desde una fecha? Prográmalo aquí</button></div></form></div>';
 }
 async function onAgregarPsicologo(){
-  var f = state.formNuevoPsicologo, nombre = f.nombre.trim();
-  if(!nombre || !f.vigenteDesde) return;
+  var f = state.formNuevoPsicologo, nombre = f.nombre.trim(), apellidos = f.apellidos.trim();
+  if(!nombre || !apellidos || !f.vigenteDesde) return;
   var ok = await conError(async function(){
-    var p = await state.backend.agregar('psicologos', { nombre:nombre, profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), activo:true, banco:'', tipoCuenta:'', numeroCuenta:'', email:'' });
+    var p = await state.backend.agregar('psicologos', { nombre:guardarNombre(nombre, apellidos), profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), activo:true, banco:f.banco.trim(), tipoCuenta:f.tipoCuenta, numeroCuenta:f.numeroCuenta.trim(), email:f.email.trim() });
     await state.backend.agregar('tarifas', { psicologoId:p.id, tarifa:parseNumeroCL(f.tarifa), tipo:f.tipoTarifa, vigenteDesde:f.vigenteDesde });
     await Promise.all([recargar('psicologos'), recargar('tarifas')]);
     return true;
   }, 'No se pudo agregar');
-  if(ok){ state.formNuevoPsicologo = { nombre:'', profesion:'', rut:'', telefono:'', tipoTarifa:'clp', tarifa:'', vigenteDesde: hoyLocal() }; mostrarToast('Profesional agregado'); }
+  if(ok){ state.formNuevoPsicologo = nuevoProfesionalVacio(); state.mostrarAltaProf = false; mostrarToast('Profesional agregado'); }
 }
 async function onGuardarPsicologo(id){
   var f = state.formPsicologo;
-  if(!f.nombre.trim()) return;
+  if(!f.nombre.trim() || !f.apellidos.trim()) return;
   var ok = await conError(async function(){
-    await state.backend.actualizar('psicologos', id, { nombre:f.nombre.trim(), profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), banco:f.banco.trim(), tipoCuenta:f.tipoCuenta, numeroCuenta:f.numeroCuenta.trim(), email:f.email.trim() });
+    await state.backend.actualizar('psicologos', id, { nombre:guardarNombre(f.nombre.trim(), f.apellidos.trim()), profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), banco:f.banco.trim(), tipoCuenta:f.tipoCuenta, numeroCuenta:f.numeroCuenta.trim(), email:f.email.trim() });
     await recargar('psicologos');
     return true;
   }, 'No se pudo guardar');
@@ -1131,9 +1181,11 @@ root.addEventListener('click', function(e){
     case 'editar-psicologo':
       var p = psicoById(id); if(!p) return;
       state.editandoPsicologoId = id;
-      state.formPsicologo = { nombre:p.nombre, profesion:p.profesion, rut:p.rut, telefono:p.telefono, banco:p.banco, tipoCuenta:p.tipoCuenta, numeroCuenta:p.numeroCuenta, email:p.email };
+      var pt = partesNombre(p);
+      state.formPsicologo = { nombre:pt.nombres, apellidos:pt.apellidos, profesion:p.profesion, rut:p.rut, telefono:p.telefono, banco:p.banco, tipoCuenta:p.tipoCuenta, numeroCuenta:p.numeroCuenta, email:p.email };
       return rerender();
     case 'cancelar-psicologo': state.editandoPsicologoId = null; return rerender();
+    case 'toggle-alta-profesional': state.mostrarAltaProf = !state.mostrarAltaProf; return rerender();
     case 'abrir-editor-tarifa': abrirEditorTarifa(id); return rerender();
     case 'modo-editar-tarifa':
       var ae = tarifaActual(id); state.formTarifaModo = 'editar';

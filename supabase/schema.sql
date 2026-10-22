@@ -7,7 +7,7 @@ create table if not exists public.psicologos (
   profesion      text not null default '',
   telefono       text not null default '',
   activo         boolean not null default true,
-  banco          text not null default '',
+  banco         text not null default '',
   tipo_cuenta    text not null default '',
   numero_cuenta  text not null default '',
   rut            text not null default '',
