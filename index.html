@@ -1,0 +1,1213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitácora EAP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%82%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#F6F3EC; --surface:#FFFFFF; --surface-2:#FBF8F2;
+    --ink:#212C27; --ink-muted:#5E6D64; --ink-faint:#93A099;
+    --line:#E2DCCC; --line-soft:#EAE4D5;
+    --accent:#3F6B5C; --accent-strong:#2A4E42; --accent-soft:#E4EEE9; --accent-ink:#1D3A31;
+    --warn:#9A6B24; --warn-soft:#F6ECD9;
+    --critical:#AE4437; --critical-soft:#F7E7E3;
+    --shadow:0 1px 2px rgba(33,44,39,.06),0 6px 20px -10px rgba(33,44,39,.18);
+    --radius-s:8px; --radius-m:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#121712; --surface:#1A211C; --surface-2:#202822;
+      --ink:#EBE7DC; --ink-muted:#A7B3A9; --ink-faint:#6D786F;
+      --line:#2C352E; --line-soft:#242D27;
+      --accent:#7FB39B; --accent-strong:#9FCBB6; --accent-soft:#213229; --accent-ink:#BFE3D2;
+      --warn:#E0B36C; --warn-soft:#332812;
+      --critical:#E3897C; --critical-soft:#3A211E;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 26px -12px rgba(0,0,0,.55);
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:'Work Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent;min-height:100vh;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif;font-weight:600;letter-spacing:-.01em;text-wrap:balance;margin:0;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;}
+  button,input,select,textarea{font-family:inherit;color:inherit;}
+  ::selection{background:var(--accent-soft);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  #app{min-height:100vh;padding-bottom:48px;}
+
+  .topbar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);}
+  .topbar-inner{max-width:980px;margin:0 auto;padding:14px 16px 12px;display:flex;align-items:center;gap:10px;}
+  .mark{width:34px;height:34px;flex-shrink:0;border-radius:9px;background:var(--accent);color:var(--surface);display:flex;align-items:center;justify-content:center;}
+  .mark svg{width:19px;height:19px;}
+  .brand{flex:1;min-width:0;}
+  .brand h1{font-size:1.15rem;line-height:1.15;}
+  .brand .sub{font-size:.74rem;color:var(--ink-muted);margin-top:1px;}
+  .identity-chip{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:.8rem;white-space:nowrap;}
+  .identity-chip .who{font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
+  .identity-chip button{border:none;background:var(--surface-2);color:var(--ink-muted);border-radius:999px;padding:5px 10px;font-size:.74rem;cursor:pointer;font-weight:500;}
+  .identity-chip button:hover{color:var(--ink);}
+
+  .tabs{max-width:980px;margin:0 auto;padding:0 16px 12px;display:flex;gap:6px;flex-wrap:wrap;}
+  .tab-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink-muted);border-radius:999px;padding:8px 14px;font-size:.85rem;font-weight:600;cursor:pointer;}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:var(--surface);}
+  .tab-btn:hover:not(.active){border-color:var(--accent);color:var(--ink);}
+
+  .wrap{max-width:980px;margin:0 auto;padding:6px 16px 40px;}
+  .wrap.narrow{max-width:640px;}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);padding:16px;box-shadow:var(--shadow);}
+  .stack{display:flex;flex-direction:column;gap:12px;}
+  .section-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-faint);font-weight:600;margin:20px 2px 8px;}
+  .section-label:first-child{margin-top:4px;}
+
+  label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-muted);margin:12px 0 5px;}
+  label:first-child{margin-top:0;}
+  input[type="text"],input[type="date"],input[type="time"],input[type="month"],input[type="number"],input[type="password"],select{
+    width:100%;padding:11px 12px;border-radius:var(--radius-s);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:.95rem;}
+  select:disabled{opacity:.55;}
+  input:focus,select:focus{border-color:var(--accent);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field-row.cols-3{grid-template-columns:repeat(3,1fr);}
+  .field-row.cols-5{grid-template-columns:repeat(5,1fr);}
+  @media (max-width:700px){.field-row.cols-3,.field-row.cols-5{grid-template-columns:1fr 1fr;}}
+  .hint{font-size:.74rem;color:var(--ink-faint);margin-top:4px;line-height:1.45;}
+
+  .btn{border:none;border-radius:var(--radius-s);padding:11px 16px;font-size:.9rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+  .btn-primary{background:var(--accent);color:var(--surface);width:100%;}
+  .btn-primary:hover{background:var(--accent-strong);}
+  .btn-primary:disabled{background:var(--ink-faint);}
+  .btn-secondary{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);}
+  .btn-secondary:hover{border-color:var(--accent);}
+  .btn-ghost{background:transparent;color:var(--ink-muted);padding:6px 10px;font-size:.82rem;}
+  .btn-ghost:hover{color:var(--ink);}
+  .btn-danger{background:transparent;color:var(--critical);border:1px solid var(--critical-soft);padding:6px 10px;font-size:.78rem;}
+  .btn-danger:hover{background:var(--critical-soft);}
+  .btn-danger-solid{background:var(--critical);color:#fff;}
+  .btn-row{display:flex;gap:8px;margin-top:14px;}
+  .btn-row .btn{flex:1;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  .empty{text-align:center;color:var(--ink-muted);padding:36px 18px;font-size:.9rem;line-height:1.6;}
+  .empty .big{font-size:1.6rem;display:block;margin-bottom:6px;}
+
+  .gate{max-width:440px;margin:0 auto;padding:56px 20px 60px;}
+  .gate-head{text-align:center;margin-bottom:26px;}
+  .logo-gate{display:block;height:48px;width:auto;margin:0 auto 20px;}
+  .logo-top{height:26px;width:auto;flex-shrink:0;}
+  .logo-hoja{display:block;height:34px;width:auto;margin-bottom:16px;}
+  @media (max-width:520px){.logo-top{height:20px;}.brand .sub{display:none;}}
+  .gate-head h1{font-size:1.55rem;margin-bottom:6px;}
+  .gate-head p{color:var(--ink-muted);font-size:.92rem;margin:0;line-height:1.5;}
+  .admin-msg{margin-top:14px;padding:12px 14px;border-radius:var(--radius-s);font-size:.85rem;line-height:1.5;background:var(--critical-soft);color:var(--critical);}
+  .demo-banner{background:var(--warn-soft);color:var(--warn);text-align:center;font-size:.8rem;padding:7px 10px;font-weight:600;}
+
+  .visita{border:1px solid var(--line);border-radius:var(--radius-m);padding:12px 14px;background:var(--surface);}
+  .visita + .visita{margin-top:8px;}
+  .visita-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .visita-fecha{font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--ink-muted);}
+  .visita-paciente{font-weight:600;font-size:.96rem;margin-top:3px;}
+  .visita-meta{font-size:.82rem;color:var(--ink-muted);margin-top:2px;}
+  .visita-psico{display:inline-block;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;padding:2px 9px;font-size:.72rem;font-weight:600;margin-top:6px;}
+  .visita-actions{display:flex;gap:6px;flex-shrink:0;}
+
+  .filtros{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px;margin-bottom:14px;}
+  .filtros-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:8px;}
+  .count-tag{font-size:.78rem;color:var(--ink-muted);}
+
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--accent-strong);color:var(--surface);padding:11px 18px;border-radius:999px;font-size:.86rem;font-weight:600;box-shadow:var(--shadow);z-index:100;}
+  .toast.toast-error{background:var(--critical);color:#fff;display:flex;align-items:center;gap:10px;}
+  .toast-close{border:none;background:transparent;color:inherit;font-size:1.1rem;line-height:1;cursor:pointer;padding:0 2px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .modal-box{background:var(--surface);border-radius:var(--radius-m);padding:20px;max-width:380px;width:100%;box-shadow:var(--shadow);}
+  .modal-msg{font-size:.92rem;line-height:1.55;margin:0;}
+
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-m);background:var(--surface);}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:640px;}
+  thead th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:600;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line-soft);white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-2);}
+  td.num,th.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  tfoot td{padding:12px 14px;font-weight:700;border-top:2px solid var(--line);font-family:'IBM Plex Mono',monospace;}
+  tfoot td.label{font-family:'Work Sans',sans-serif;}
+
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  @media (max-width:560px){.stat-row{grid-template-columns:1fr;}}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px 16px;box-shadow:var(--shadow);}
+  .stat .lbl{font-size:.74rem;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+  .stat .val{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600;margin-top:4px;}
+  .stat.accent{background:var(--accent-soft);border-color:var(--accent-soft);}
+  .stat.accent .val{color:var(--accent-ink);}
+
+  .list-row{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:var(--radius-m);padding:12px 14px;background:var(--surface);flex-wrap:wrap;}
+  .list-row .info{flex:1;min-width:180px;}
+  .list-row .nombre{font-weight:600;font-size:.95rem;}
+  .list-row .tel{font-size:.78rem;color:var(--ink-faint);margin-top:1px;}
+  .list-row.inactivo{opacity:.55;}
+  .sub-panel{border:1px solid var(--line);border-radius:var(--radius-m);padding:14px;background:var(--surface);margin-top:-4px;}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;color:var(--ink-muted);cursor:pointer;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:5px 10px;}
+  .switch input{width:auto;}
+  .psico-link{background:none;border:none;padding:0;font:inherit;color:var(--ink);font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;}
+  .psico-link:hover{color:var(--accent-strong);}
+  .notice{background:var(--warn-soft);color:var(--warn);border-radius:var(--radius-s);padding:12px 14px;font-size:.85rem;line-height:1.5;margin-bottom:14px;}
+  .notice.info{background:var(--accent-soft);color:var(--accent-ink);}
+
+  /* Reporte para el profesional (siempre claro, pensado para imprimir) */
+  .hoja{max-width:800px;margin:0 auto;background:#fff;color:#1c1f1d;border:1px solid var(--line);border-radius:var(--radius-m);padding:36px 40px;box-shadow:var(--shadow);}
+  .hoja h2{font-size:1.5rem;color:#1c1f1d;}
+  .hoja .emisor{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:#5b645f;font-weight:600;margin-bottom:6px;}
+  .hoja .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin:20px 0 22px;font-size:.9rem;}
+  .hoja .meta b{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#6b746f;font-weight:600;margin-bottom:1px;}
+  .hoja table{min-width:0;font-size:.84rem;color:#1c1f1d;}
+  .hoja thead th{color:#5b645f;border-bottom:1px solid #cfd4d0;padding:8px 8px;}
+  .hoja tbody td{padding:7px 8px;border-bottom:1px solid #e6e9e6;white-space:normal;}
+  .hoja tbody tr:hover{background:transparent;}
+  .hoja .totales{margin:22px 0 0 auto;max-width:440px;font-size:.92rem;}
+  .hoja .totales span{white-space:nowrap;}
+  .hoja .totales span:first-child{white-space:normal;padding-right:14px;}
+  .hoja .totales div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #e6e9e6;}
+  .hoja .totales div.fuerte{font-weight:700;font-size:1rem;border-bottom:2px solid #1c1f1d;}
+  .hoja .nota{margin-top:20px;font-size:.78rem;color:#5b645f;line-height:1.5;}
+  .hoja .aviso{margin-top:14px;padding:10px 12px;background:#fbf1dd;color:#7a5a1d;font-size:.82rem;border-radius:6px;}
+  @media (max-width:700px){.hoja{padding:22px 16px;}.hoja .meta{grid-template-columns:1fr;}}
+  @media print{
+    @page{size:A4;margin:16mm;}
+    html,body{background:#fff !important;}
+    .topbar,.tabs,.no-print,.toast,.demo-banner{display:none !important;}
+    .wrap{padding:0 !important;max-width:none !important;}
+    .hoja{border:none;box-shadow:none;padding:0;max-width:none;border-radius:0;}
+    .table-wrap{border:none;overflow:visible;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+
+var CFG = window.BITACORA_CONFIG || {};
+var DEMO = /(^|[?&#])demo/.test(location.search + location.hash);
+var root = document.getElementById('app');
+var MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+var LOGO_SRC = 'data:image/png;base64,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';
+var TIPOS_CUENTA = ['Cuenta Corriente','Cuenta Vista','Cuenta RUT','Cuenta de Ahorro'];
+var PROFESIONES = ['Psicólogo/a','Psiquiatra','Terapeuta ocupacional','Trabajador/a social','Coach','Nutricionista','Kinesiólogo/a','Fonoaudiólogo/a','Médico/a','Abogado/a'];
+var LISTA_PROFESIONES = '<datalist id="lista-profesiones">' + PROFESIONES.map(function(x){ return '<option value="'+x+'">'; }).join('') + '</datalist>';
+
+// ---------- Esquema (campo de la app -> columna en la base) ----------
+var TABLAS = {
+  psicologos: { estado:'psicologos',       cols:{ nombre:'nombre', telefono:'telefono', activo:'activo', banco:'banco', tipoCuenta:'tipo_cuenta', numeroCuenta:'numero_cuenta', rut:'rut', email:'email', profesion:'profesion' } },
+  empresas:   { estado:'empresas',         cols:{ nombre:'nombre', activo:'activo' } },
+  pacientes:  { estado:'pacientes',        cols:{ nombre:'nombre', empresaId:'empresa_id', empresaNombre:'empresa_nombre', activo:'activo' } },
+  atenciones: { estado:'atenciones',       cols:{ psicologoId:'psicologo_id', psicologoNombre:'psicologo_nombre', fecha:'fecha', hora:'hora', empresaId:'empresa_id', empresaNombre:'empresa_nombre', pacienteId:'paciente_id', pacienteNombre:'paciente_nombre' } },
+  tarifas:    { estado:'tarifasHistorial', cols:{ psicologoId:'psicologo_id', tarifa:'tarifa', tipo:'tipo', vigenteDesde:'vigente_desde' } }
+};
+function toRow(tabla, obj){
+  var cols = TABLAS[tabla].cols, row = {};
+  Object.keys(cols).forEach(function(k){ if(obj[k] !== undefined) row[cols[k]] = obj[k]; });
+  return row;
+}
+function fromRow(tabla, row){
+  var cols = TABLAS[tabla].cols, o = { id: row.id };
+  Object.keys(cols).forEach(function(k){
+    var v = row[cols[k]];
+    if(k === 'activo') o[k] = v !== false;
+    else if(k === 'tarifa') o[k] = Number(v) || 0;
+    else o[k] = (v === null || v === undefined) ? '' : v;
+  });
+  return o;
+}
+
+// ---------- Estado ----------
+var state = {
+  backend: null, authListo: false, session: null, datosListos: false,
+  login: { email:'', password:'', error:'', cargando:false },
+  psicologos: [], empresas: [], pacientes: [], atenciones: [], tarifasHistorial: [],
+  config: { retencionPct: 0, moneda: '$', valorUF: 0, emisor: '' },
+  tab: 'liquidacion',
+  mes: mesActual(),
+  filtros: { psicologoId:'', empresaId:'', paciente:'', mes:'', desde:'', hasta:'' },
+  limiteAtenciones: 200,
+  formAtencion: { fecha: hoyLocal(), hora: horaAhora(), psicologoId:'', empresaId:'', pacienteId:'' },
+  editandoAtencionId: null,
+  formEditar: { fecha:'', hora:'', psicologoId:'', empresaId:'', pacienteId:'' },
+  formNuevoPsicologo: { nombre:'', profesion:'', rut:'', telefono:'', tipoTarifa:'clp', tarifa:'', vigenteDesde: hoyLocal() },
+  editandoPsicologoId: null,
+  formPsicologo: { nombre:'', profesion:'', rut:'', telefono:'', banco:'', tipoCuenta:'', numeroCuenta:'', email:'' },
+  editandoTarifaPsicologoId: null, formTarifaModo: 'editar',
+  formTarifa: { tipo:'clp', tarifa:'', vigenteDesde: hoyLocal() },
+  formNuevaEmpresa: { nombre:'' },
+  editandoEmpresaId: null, formEmpresa: { nombre:'' },
+  formNuevoPaciente: { empresaId:'', nombre:'' },
+  pacientesFiltroEmpresaId: '',
+  editandoPacienteId: null, formPaciente: { empresaId:'', nombre:'' },
+  formConfig: { retencionPct:'', moneda:'$', valorUF:'', emisor:'' },
+  reporte: null, incluirPacientes: true,
+  toast: null, errorMsg: null, confirmDialog: null
+};
+
+// ---------- Utilidades ----------
+function esc(s){
+  return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function hoyLocal(){ var d = new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function horaAhora(){ var d = new Date(); return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function mesActual(){ var d = new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function fmtFecha(f){ if(!f) return '—'; var p = f.split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : f; }
+function mesLabel(m){ if(!m) return ''; var p = m.split('-'); return (MESES[Number(p[1])-1]||'') + ' ' + p[0]; }
+function fmtMoneda(n, moneda){ return (moneda||'$') + ' ' + Math.round(n||0).toLocaleString('es-CL'); }
+function fmtNumeroCL(n){ return (Number(n)||0).toLocaleString('es-CL', {maximumFractionDigits:2}); }
+function parseNumeroCL(s){
+  if(s === null || s === undefined || s === '') return 0;
+  var n = parseFloat(String(s).trim().replace(/\./g,'').replace(',','.'));
+  return isNaN(n) ? 0 : n;
+}
+function csvCell(v){
+  var s = String(v === null || v === undefined ? '' : v);
+  return /[",;\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+}
+function csvDe(filas){ return '﻿' + filas.map(function(r){ return r.map(csvCell).join(';'); }).join('\r\n'); }
+function descargar(nombre, texto){
+  var url = URL.createObjectURL(new Blob([texto], { type:'text/csv;charset=utf-8' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+function ordenNombre(a, b){ return (a.nombre||'').localeCompare(b.nombre||'', 'es'); }
+function activosDe(lista){ return lista.filter(function(x){ return x.activo !== false; }).sort(ordenNombre); }
+function todosDe(lista){ return lista.slice().sort(ordenNombre); }
+function porId(lista, id){ for(var i=0;i<lista.length;i++){ if(lista[i].id===id) return lista[i]; } return null; }
+
+function psicoById(id){ return porId(state.psicologos, id); }
+function empresaById(id){ return porId(state.empresas, id); }
+function pacienteById(id){ return porId(state.pacientes, id); }
+function nombrePsico(a){ var p = psicoById(a.psicologoId); return p ? p.nombre : (a.psicologoNombre || '(profesional eliminado)'); }
+function nombreEmpresaRef(o){ var e = empresaById(o.empresaId); return e ? e.nombre : (o.empresaNombre || '(empresa eliminada)'); }
+function nombrePacienteRef(a){ var p = pacienteById(a.pacienteId); return p ? p.nombre : (a.pacienteNombre || '(paciente eliminado)'); }
+function pacientesDeEmpresa(empresaId, soloActivos){
+  return state.pacientes.filter(function(p){ return p.empresaId === empresaId && (!soloActivos || p.activo !== false); }).sort(ordenNombre);
+}
+
+// ---------- Tarifas ----------
+function historialTarifas(psicologoId){
+  return state.tarifasHistorial.filter(function(t){ return t.psicologoId === psicologoId; })
+    .sort(function(a,b){ return b.vigenteDesde.localeCompare(a.vigenteDesde); });
+}
+function tarifaActual(psicologoId){ var h = historialTarifas(psicologoId); return h.length ? h[0] : null; }
+function tarifaVigenteEn(psicologoId, fecha){
+  var c = state.tarifasHistorial.filter(function(t){ return t.psicologoId === psicologoId && t.vigenteDesde <= fecha; });
+  if(!c.length) return null;
+  c.sort(function(a,b){ return b.vigenteDesde.localeCompare(a.vigenteDesde); });
+  return c[0];
+}
+function valorTarifaPesos(t){ if(!t) return 0; return t.tipo === 'uf' ? t.tarifa * (state.config.valorUF||0) : t.tarifa; }
+function textoTarifa(t, moneda){
+  if(!t) return 'Sin tarifa';
+  return t.tipo === 'uf' ? fmtNumeroCL(t.tarifa) + ' UF' : fmtMoneda(t.tarifa, moneda);
+}
+
+// ---------- Cálculos mensuales ----------
+function itemsPsicologo(psicologoId, mes){
+  return state.atenciones
+    .filter(function(a){ return a.psicologoId === psicologoId && a.fecha.slice(0,7) === mes; })
+    .sort(function(a,b){ return (a.fecha+a.hora).localeCompare(b.fecha+b.hora); })
+    .map(function(a){ var t = tarifaVigenteEn(psicologoId, a.fecha); return { a:a, t:t, valor: Math.round(valorTarifaPesos(t)) }; });
+}
+function resumenPsicologo(p, mes){
+  var items = itemsPsicologo(p.id, mes);
+  var bruto = items.reduce(function(s,i){ return s + i.valor; }, 0);
+  var pct = state.config.retencionPct || 0;
+  var retencion = Math.round(bruto * pct / 100);
+  var usadas = {};
+  items.forEach(function(i){ if(i.t) usadas[i.t.tipo + ':' + i.t.tarifa] = true; });
+  return {
+    p:p, items:items, cantidad:items.length, bruto:bruto, retPct:pct, retencion:retencion, liquido:bruto - retencion,
+    faltaTarifa: items.some(function(i){ return !i.t; }),
+    variasTarifas: Object.keys(usadas).length > 1,
+    tarifaRepr: tarifaVigenteEn(p.id, mes + '-31')
+  };
+}
+function filasLiquidacion(mes){
+  return todosDe(state.psicologos).map(function(p){ return resumenPsicologo(p, mes); })
+    .filter(function(r){ return r.cantidad > 0 || r.p.activo !== false; });
+}
+
+// ---------- Capa de datos ----------
+function crearBackendSupabase(){
+  var sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, { auth: { persistSession:true, autoRefreshToken:true } });
+  function chk(r){ if(r.error) throw r.error; return r.data; }
+  return {
+    sb: sb,
+    cargar: async function(tabla){
+      var out = [], desde = 0, paso = 1000;
+      while(true){
+        var data = chk(await sb.from(tabla).select('*').order('creado_en',{ascending:true}).order('id',{ascending:true}).range(desde, desde+paso-1));
+        data.forEach(function(r){ out.push(fromRow(tabla, r)); });
+        if(data.length < paso) break;
+        desde += paso;
+      }
+      return out;
+    },
+    agregar: async function(tabla, obj){ return fromRow(tabla, chk(await sb.from(tabla).insert(toRow(tabla,obj)).select().single())); },
+    actualizar: async function(tabla, id, patch){ chk(await sb.from(tabla).update(toRow(tabla,patch)).eq('id',id)); },
+    eliminar: async function(tabla, id){ chk(await sb.from(tabla).delete().eq('id',id)); },
+    cargarConfig: async function(){
+      var r = chk(await sb.from('config').select('*').eq('id','general').maybeSingle());
+      return r ? { retencionPct:Number(r.retencion_pct)||0, moneda:r.moneda||'$', valorUF:Number(r.valor_uf)||0, emisor:r.emisor||'' } : null;
+    },
+    guardarConfig: async function(c){
+      chk(await sb.from('config').update({ retencion_pct:c.retencionPct, moneda:c.moneda, valor_uf:c.valorUF, emisor:c.emisor }).eq('id','general'));
+    }
+  };
+}
+function crearBackendDemo(){
+  var n = 100, mem = { psicologos:[], empresas:[], pacientes:[], atenciones:[], tarifas:[] };
+  var cfg = { retencionPct:15.25, moneda:'$', valorUF:40935, emisor:'Programa EAP' };
+  var mes = mesActual();
+  mem.psicologos = [
+    { id:'d1', nombre:'Andrea Claro', profesion:'Psicóloga', rut:'12.345.678-9', telefono:'+56 9 1111 2222', activo:true, banco:'Banco Estado', tipoCuenta:'Cuenta RUT', numeroCuenta:'12345678', email:'andrea@correo.cl' },
+    { id:'d2', nombre:'Rosario Velasco', profesion:'Terapeuta ocupacional', rut:'13.456.789-0', telefono:'', activo:true, banco:'', tipoCuenta:'', numeroCuenta:'', email:'' }
+  ];
+  mem.empresas = [ { id:'e1', nombre:'Copec', activo:true }, { id:'e2', nombre:'Puntopersonal', activo:true } ];
+  mem.pacientes = [
+    { id:'p1', nombre:'Ana Torres', empresaId:'e1', empresaNombre:'Copec', activo:true },
+    { id:'p2', nombre:'Federico Ramírez', empresaId:'e1', empresaNombre:'Copec', activo:true },
+    { id:'p3', nombre:'Juan Pérez', empresaId:'e2', empresaNombre:'Puntopersonal', activo:true }
+  ];
+  mem.tarifas = [
+    { id:'t1', psicologoId:'d1', tarifa:2, tipo:'uf', vigenteDesde: mes+'-01' },
+    { id:'t2', psicologoId:'d2', tarifa:25000, tipo:'clp', vigenteDesde: mes+'-01' }
+  ];
+  mem.atenciones = [
+    { id:'a1', psicologoId:'d1', psicologoNombre:'Andrea Claro', fecha:mes+'-03', hora:'10:00', empresaId:'e1', empresaNombre:'Copec', pacienteId:'p1', pacienteNombre:'Ana Torres' },
+    { id:'a2', psicologoId:'d1', psicologoNombre:'Andrea Claro', fecha:mes+'-05', hora:'11:30', empresaId:'e1', empresaNombre:'Copec', pacienteId:'p2', pacienteNombre:'Federico Ramírez' },
+    { id:'a3', psicologoId:'d2', psicologoNombre:'Rosario Velasco', fecha:mes+'-04', hora:'16:00', empresaId:'e2', empresaNombre:'Puntopersonal', pacienteId:'p3', pacienteNombre:'Juan Pérez' }
+  ];
+  function clon(o){ return JSON.parse(JSON.stringify(o)); }
+  return {
+    cargar: async function(t){ return clon(mem[t]); },
+    agregar: async function(t, obj){ var o = Object.assign({ id:'n'+(++n) }, clon(obj)); mem[t].push(o); return clon(o); },
+    actualizar: async function(t, id, patch){ var o = porId(mem[t], id); if(o) Object.assign(o, clon(patch)); },
+    eliminar: async function(t, id){ mem[t] = mem[t].filter(function(x){ return x.id !== id; }); },
+    cargarConfig: async function(){ return clon(cfg); },
+    guardarConfig: async function(c){ cfg = clon(c); }
+  };
+}
+
+async function recargar(tabla){
+  state[TABLAS[tabla].estado] = await state.backend.cargar(tabla);
+  rerender();
+}
+async function recargarConfig(){
+  var c = await state.backend.cargarConfig();
+  if(c) state.config = c;
+  rerender();
+}
+async function cargarTodo(){
+  var tablas = Object.keys(TABLAS);
+  var res = await Promise.all(tablas.map(function(t){ return state.backend.cargar(t); }));
+  tablas.forEach(function(t, i){ state[TABLAS[t].estado] = res[i]; });
+  var c = await state.backend.cargarConfig();
+  if(c) state.config = c;
+  state.datosListos = true;
+  rerender();
+}
+var recargaPendiente = {};
+function programarRecarga(tabla){
+  clearTimeout(recargaPendiente[tabla]);
+  recargaPendiente[tabla] = setTimeout(function(){
+    (tabla === 'config' ? recargarConfig() : (TABLAS[tabla] ? recargar(tabla) : Promise.resolve())).catch(function(e){ console.error(e); });
+  }, 350);
+}
+var escuchando = false;
+function escucharCambios(){
+  var sb = state.backend.sb;
+  if(!sb || escuchando) return;
+  escuchando = true;
+  sb.channel('cambios')
+    .on('postgres_changes', { event:'*', schema:'public' }, function(p){ programarRecarga(p.table); })
+    .subscribe();
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && state.session){ cargarTodo().catch(function(e){ console.error(e); }); }
+  });
+}
+
+async function conError(fn, prefijo){
+  try{ return await fn(); }
+  catch(e){ mostrarError((prefijo || 'No se pudo completar') + ': ' + ((e && e.message) || 'error desconocido')); return undefined; }
+}
+
+// ---------- Arranque / sesión ----------
+async function iniciar(){
+  if(DEMO){
+    state.backend = crearBackendDemo();
+    state.session = { user: { email:'demo' } };
+    state.authListo = true;
+    await cargarTodo();
+    return;
+  }
+  if(!CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY || !window.supabase){ state.authListo = true; rerender(); return; }
+  state.backend = crearBackendSupabase();
+  var sb = state.backend.sb;
+  var r = await sb.auth.getSession();
+  state.session = r.data.session;
+  state.authListo = true;
+  if(state.session){ rerender(); await cargarTodo().catch(function(e){ mostrarError('No se pudieron cargar los datos: ' + e.message); }); escucharCambios(); }
+  else rerender();
+  sb.auth.onAuthStateChange(function(ev, sess){
+    var tenia = !!state.session;
+    state.session = sess;
+    setTimeout(function(){
+      if(sess && !tenia){ cargarTodo().catch(function(e){ mostrarError('No se pudieron cargar los datos: ' + e.message); }); escucharCambios(); }
+      if(!sess){ state.datosListos = false; rerender(); }
+    }, 0);
+  });
+}
+async function onLogin(){
+  var l = state.login;
+  var elE = document.getElementById('lg-email'), elP = document.getElementById('lg-pass');
+  if(elE) l.email = elE.value;
+  if(elP) l.password = elP.value;
+  l.error = ''; l.cargando = true; rerender();
+  var r = await state.backend.sb.auth.signInWithPassword({ email: l.email.trim(), password: l.password });
+  l.cargando = false;
+  if(r.error){ l.error = 'Correo o contraseña incorrectos.'; rerender(); return; }
+  l.password = '';
+  state.session = r.data.session;
+  rerender();
+  await cargarTodo().catch(function(e){ mostrarError('No se pudieron cargar los datos: ' + e.message); });
+  escucharCambios();
+}
+async function onSalir(){
+  if(DEMO){ return; }
+  await state.backend.sb.auth.signOut();
+  state.session = null; state.datosListos = false;
+  rerender();
+}
+
+// ---------- Render base ----------
+function rerender(){
+  var activo = document.activeElement;
+  var activeId = activo && activo.id ? activo.id : null;
+  var ss = null, se = null;
+  if(activo && 'selectionStart' in activo){ try{ ss = activo.selectionStart; se = activo.selectionEnd; }catch(e){} }
+  var y = window.scrollY;
+  root.innerHTML = renderApp() + renderErrorBanner() + renderConfirmModal();
+  if(activeId){
+    var el = document.getElementById(activeId);
+    if(el){
+      el.focus({ preventScroll:true });
+      if(ss !== null && el.setSelectionRange){ try{ el.setSelectionRange(ss, se); }catch(e){} }
+    }
+  }
+  if(window.scrollY !== y) window.scrollTo(0, y);
+}
+function markSvg(){
+  return '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3c-4.2 0-7.5 3-7.5 7.2 0 2.6 1.4 4.7 2.6 5.9.5.5.9 1.3.9 2v.4a1.5 1.5 0 0 0 1.5 1.5h5a1.5 1.5 0 0 0 1.5-1.5v-.4c0-.7.4-1.5.9-2 1.2-1.2 2.6-3.3 2.6-5.9C19.5 6 16.2 3 12 3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.5 21h5M10 10.5l1.5 1.5L14.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function mostrarToast(msg){
+  state.toast = msg; rerender();
+  setTimeout(function(){ state.toast = null; var t = document.getElementById('toast'); if(t) t.remove(); }, 2200);
+}
+function mostrarError(msg){ state.errorMsg = msg; rerender(); }
+function pedirConfirmacion(tipo, id, mensaje){ state.confirmDialog = { tipo:tipo, id:id, mensaje:mensaje }; rerender(); }
+
+function renderApp(){
+  if(!state.authListo) return renderCargando();
+  if(!DEMO && !state.backend) return renderSinConfig();
+  if(!state.session) return renderLogin();
+  if(!state.datosListos) return renderCargando();
+  return renderShell(state.reporte ? renderReporte() : renderTab());
+}
+function renderCargando(){
+  return '<div class="gate"><div class="gate-head"><img class="logo-gate" src="'+LOGO_SRC+'" alt="Wellive"><h1>Bitácora EAP</h1><p>Cargando…</p></div></div>';
+}
+function renderSinConfig(){
+  return '<div class="gate"><div class="gate-head"><img class="logo-gate" src="'+LOGO_SRC+'" alt="Wellive"><h1>Bitácora EAP</h1></div>' +
+    '<div class="admin-msg">Falta conectar la base de datos. Abre el archivo <b>config.js</b> y pega la URL y la llave pública de tu proyecto de Supabase (instrucciones en LEEME.md).<br><br>Para ver cómo funciona sin conectar nada, abre esta página con <b>#demo</b> al final de la dirección.</div></div>';
+}
+function renderLogin(){
+  var l = state.login;
+  return '<div class="gate"><div class="gate-head"><img class="logo-gate" src="'+LOGO_SRC+'" alt="Wellive"><h1>Bitácora EAP</h1><p>Ingresa con tu correo y contraseña.</p></div>' +
+    '<div class="card"><form data-action="login">' +
+      '<label for="lg-email">Correo</label>' +
+      '<input type="text" inputmode="email" autocomplete="username" id="lg-email" data-form="login" data-field="email" value="'+esc(l.email)+'" required>' +
+      '<label for="lg-pass">Contraseña</label>' +
+      '<input type="password" autocomplete="current-password" id="lg-pass" data-form="login" data-field="password" value="'+esc(l.password)+'" required>' +
+      '<div class="btn-row"><button class="btn btn-primary" type="submit" '+(l.cargando?'disabled':'')+'>'+(l.cargando?'Entrando…':'Entrar')+'</button></div>' +
+      (l.error ? '<div class="admin-msg">'+esc(l.error)+'</div>' : '') +
+    '</form></div></div>';
+}
+function renderShell(contenido){
+  var quien = DEMO ? 'Demostración' : ((state.session && state.session.user && state.session.user.email) || '');
+  var tabs = [['liquidacion','Liquidación'],['atenciones','Atenciones'],['psicologos','Profesionales'],['empresas','Empresas'],['pacientes','Pacientes'],['config','Configuración']];
+  return (DEMO ? '<div class="demo-banner">Modo demostración: los datos de ejemplo no se guardan.</div>' : '') +
+    '<div class="topbar"><div class="topbar-inner">' +
+      '<img class="logo-top" src="'+LOGO_SRC+'" alt="Wellive">' +
+      '<div class="brand"><h1>Bitácora EAP</h1><div class="sub">Registro de atenciones y liquidación</div></div>' +
+      '<div class="identity-chip"><span class="who">'+esc(quien)+'</span>'+(DEMO?'':'<button data-action="salir" type="button">Salir</button>')+'</div>' +
+    '</div></div>' +
+    (state.reporte ? '' : '<div class="tabs">' + tabs.map(function(t){
+      return '<button class="tab-btn'+(state.tab===t[0]?' active':'')+'" data-action="set-tab" data-tab="'+t[0]+'" type="button">'+t[1]+'</button>';
+    }).join('') + '</div>') +
+    contenido + (state.toast ? '<div class="toast" id="toast">'+esc(state.toast)+'</div>' : '');
+}
+function renderErrorBanner(){
+  return state.errorMsg ? '<div class="toast toast-error"><span>'+esc(state.errorMsg)+'</span><button class="toast-close" data-action="cerrar-error" type="button" aria-label="Cerrar">×</button></div>' : '';
+}
+function renderConfirmModal(){
+  var c = state.confirmDialog;
+  if(!c) return '';
+  return '<div class="modal-overlay" data-action="cancelar-confirm"><div class="modal-box"><p class="modal-msg">'+esc(c.mensaje)+'</p>' +
+    '<div class="btn-row"><button class="btn btn-secondary" data-action="cancelar-confirm" type="button">Cancelar</button>' +
+    '<button class="btn btn-danger-solid" data-action="confirmar-eliminar" type="button">Eliminar</button></div></div></div>';
+}
+function renderTab(){
+  switch(state.tab){
+    case 'atenciones': return renderAtenciones();
+    case 'psicologos': return renderPsicologos();
+    case 'empresas': return renderEmpresas();
+    case 'pacientes': return renderPacientes();
+    case 'config': return renderConfig();
+    default: return renderLiquidacion();
+  }
+}
+function opcionesSelect(lista, valor, vacio){
+  return '<option value="">'+esc(vacio)+'</option>' + lista.map(function(x){
+    return '<option value="'+x.id+'"'+(valor===x.id?' selected':'')+'>'+esc(x.nombre)+'</option>';
+  }).join('');
+}
+
+// ---------- Liquidación ----------
+function fmtTarifaUnitaria(r, moneda){
+  if(!r.tarifaRepr) return '<span class="hint">Sin tarifa</span>';
+  var base = r.tarifaRepr.tipo === 'uf'
+    ? fmtNumeroCL(r.tarifaRepr.tarifa) + ' UF <span class="hint">('+fmtMoneda(valorTarifaPesos(r.tarifaRepr), moneda)+')</span>'
+    : fmtMoneda(r.tarifaRepr.tarifa, moneda);
+  if(r.variasTarifas) base += ' <span class="hint">· varió este mes</span>';
+  if(r.faltaTarifa) base += ' <span class="hint">· hay atenciones sin tarifa</span>';
+  return base;
+}
+function renderLiquidacion(){
+  var mes = state.mes, moneda = state.config.moneda;
+  var filas = filasLiquidacion(mes);
+  var sum = function(k){ return filas.reduce(function(s,f){ return s + f[k]; }, 0); };
+  var totCant = sum('cantidad'), totBruto = sum('bruto'), totRet = sum('retencion'), totLiq = sum('liquido');
+
+  var cabecera = '<div class="card" style="margin-bottom:16px;">' +
+    '<div class="field-row" style="align-items:end;">' +
+      '<div><label for="mes-liq">Mes a liquidar</label><input type="month" id="mes-liq" data-action="set-mes" value="'+esc(mes)+'"></div>' +
+      '<div><label for="uf-liq">Valor UF (en pesos)</label><input type="text" inputmode="decimal" id="uf-liq" data-action="quick-valor-uf" value="'+fmtNumeroCL(state.config.valorUF)+'" placeholder="0"></div>' +
+    '</div>' +
+    '<div class="btn-row">' +
+      '<button class="btn btn-secondary" data-action="traer-uf" type="button">Traer UF de hoy</button>' +
+      '<button class="btn btn-secondary" data-action="exportar-resumen" type="button">Descargar resumen (CSV)</button>' +
+      '<button class="btn btn-secondary" data-action="exportar-detalle-mes" type="button">Descargar detalle (CSV)</button>' +
+    '</div>' +
+    '<div class="hint">Retención aplicada: '+fmtNumeroCL(state.config.retencionPct)+'%. Las tarifas pactadas en UF se convierten a pesos con el valor de arriba: actualízalo el día que liquides. El resumen incluye los datos de transferencia de cada profesional.</div>' +
+    (!state.config.valorUF ? '<div class="notice" style="margin-top:10px;margin-bottom:0;">El valor de la UF está en 0: cualquier tarifa pactada en UF se calcula como $0.</div>' : '') +
+  '</div>';
+
+  var stats = '<div class="stat-row">' +
+    '<div class="stat"><div class="lbl">Atenciones</div><div class="val mono">'+totCant+'</div></div>' +
+    '<div class="stat"><div class="lbl">Bruto total</div><div class="val mono">'+fmtMoneda(totBruto,moneda)+'</div></div>' +
+    '<div class="stat accent"><div class="lbl">Líquido a pagar</div><div class="val mono">'+fmtMoneda(totLiq,moneda)+'</div></div></div>';
+
+  var tabla = filas.length === 0
+    ? '<div class="empty"><span class="big">🧾</span>Aún no hay profesionales ni atenciones. Empieza en la pestaña Profesionales.</div>'
+    : '<div class="table-wrap"><table><thead><tr><th>Profesional</th><th class="num">N° atenciones</th><th class="num">Tarifa unit.</th><th class="num">Bruto</th><th class="num">Retención</th><th class="num">Líquido</th><th></th></tr></thead><tbody>' +
+      filas.map(function(r){
+        return '<tr><td><button class="psico-link" type="button" data-action="ir-a-atenciones" data-id="'+r.p.id+'" title="Ver sus atenciones">'+esc(r.p.nombre)+'</button>'+(r.p.activo===false?' <span class="hint">(inactivo)</span>':'')+'</td>' +
+          '<td class="num">'+r.cantidad+'</td><td class="num">'+fmtTarifaUnitaria(r,moneda)+'</td>' +
+          '<td class="num">'+fmtMoneda(r.bruto,moneda)+'</td><td class="num">'+fmtMoneda(r.retencion,moneda)+'</td><td class="num">'+fmtMoneda(r.liquido,moneda)+'</td>' +
+          '<td><button class="btn btn-secondary" style="padding:6px 10px;font-size:.78rem;" data-action="abrir-reporte" data-id="'+r.p.id+'" type="button">Reporte</button></td></tr>';
+      }).join('') +
+      '</tbody><tfoot><tr><td class="label">Total</td><td class="num">'+totCant+'</td><td></td><td class="num">'+fmtMoneda(totBruto,moneda)+'</td><td class="num">'+fmtMoneda(totRet,moneda)+'</td><td class="num">'+fmtMoneda(totLiq,moneda)+'</td><td></td></tr></tfoot></table></div>';
+
+  return '<div class="wrap"><div class="section-label">'+esc(mesLabel(mes))+'</div>' + cabecera + stats + tabla +
+    (filas.length ? '<div class="hint" style="margin-top:8px;">"Reporte" abre la hoja del mes de ese profesional, lista para imprimir o guardar en PDF y enviársela para su boleta.</div>' : '') + '</div>';
+}
+function nombreArchivo(s){ return String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_|_$/g,'').toLowerCase(); }
+function exportarResumen(){
+  var filas = filasLiquidacion(state.mes);
+  var head = ['Profesional','Profesión','RUT','Banco','Tipo de cuenta','N° de cuenta','Email','N° atenciones','Tarifa pactada','Bruto','Retención %','Retención $','Líquido a transferir'];
+  var rows = filas.map(function(r){
+    var p = r.p;
+    return [p.nombre, p.profesion, p.rut, p.banco, p.tipoCuenta, p.numeroCuenta, p.email, r.cantidad, r.tarifaRepr ? textoTarifa(r.tarifaRepr, state.config.moneda) : '', r.bruto, r.retPct, r.retencion, r.liquido];
+  });
+  var tot = function(k){ return filas.reduce(function(s,f){ return s + f[k]; }, 0); };
+  rows.push(['TOTAL','','','','','','',tot('cantidad'),'',tot('bruto'),'',tot('retencion'),tot('liquido')]);
+  descargar('resumen_' + state.mes + '.csv', csvDe([head].concat(rows)));
+}
+function exportarDetalleMes(){
+  var head = ['Fecha','Hora','Profesional','Empresa','Paciente','Tarifa pactada','Valor (pesos)'];
+  var rows = [];
+  todosDe(state.psicologos).forEach(function(p){
+    itemsPsicologo(p.id, state.mes).forEach(function(i){
+      rows.push([fmtFecha(i.a.fecha), i.a.hora, p.nombre, nombreEmpresaRef(i.a), nombrePacienteRef(i.a), i.t ? textoTarifa(i.t, state.config.moneda) : 'SIN TARIFA', i.valor]);
+    });
+  });
+  descargar('detalle_' + state.mes + '.csv', csvDe([head].concat(rows)));
+}
+
+// ---------- Reporte para el profesional ----------
+function renderReporte(){
+  var p = psicoById(state.reporte.psicologoId);
+  if(!p){ state.reporte = null; return renderLiquidacion(); }
+  var r = resumenPsicologo(p, state.mes), moneda = state.config.moneda;
+  var usaUF = r.items.some(function(i){ return i.t && i.t.tipo === 'uf'; });
+  var filas = r.items.length === 0
+    ? '<tr><td colspan="'+(state.incluirPacientes?6:5)+'" style="text-align:center;color:#6b746f;padding:18px;">Sin atenciones en este mes.</td></tr>'
+    : r.items.map(function(i){
+        return '<tr><td>'+fmtFecha(i.a.fecha)+'</td><td>'+esc(i.a.hora)+'</td><td>'+esc(nombreEmpresaRef(i.a))+'</td>' +
+          (state.incluirPacientes ? '<td>'+esc(nombrePacienteRef(i.a))+'</td>' : '') +
+          '<td>'+(i.t ? textoTarifa(i.t, moneda) : 'Sin tarifa')+'</td><td class="num">'+fmtMoneda(i.valor, moneda)+'</td></tr>';
+      }).join('');
+  return '<div class="wrap">' +
+    '<div class="no-print" style="max-width:800px;margin:0 auto 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+      '<button class="btn btn-secondary" data-action="cerrar-reporte" type="button">← Volver</button>' +
+      '<button class="btn btn-secondary" data-action="imprimir-reporte" type="button">Imprimir / Guardar PDF</button>' +
+      '<button class="btn btn-secondary" data-action="csv-reporte" type="button">Descargar CSV</button>' +
+      '<label class="switch" style="margin:0;"><input type="checkbox" data-action="toggle-incluir-pacientes" '+(state.incluirPacientes?'checked':'')+'>Incluir nombre de pacientes</label>' +
+    '</div>' +
+    '<div class="hoja">' +
+      '<img class="logo-hoja" src="'+LOGO_SRC+'" alt="Wellive">' +
+      (state.config.emisor ? '<div class="emisor">'+esc(state.config.emisor)+'</div>' : '') +
+      '<h2>Resumen de atenciones · '+esc(mesLabel(state.mes))+'</h2>' +
+      '<div class="meta">' +
+        '<div><b>Profesional</b>'+esc(p.nombre)+'</div>' +
+        '<div><b>Profesión</b>'+esc(p.profesion||'—')+'</div>' +
+        '<div><b>RUT</b>'+esc(p.rut||'—')+'</div>' +
+        '<div><b>Período</b>'+esc(mesLabel(state.mes))+'</div>' +
+        '<div><b>Atenciones realizadas</b>'+r.cantidad+'</div>' +
+      '</div>' +
+      '<table><thead><tr><th>Fecha</th><th>Hora</th><th>Empresa</th>'+(state.incluirPacientes?'<th>Paciente</th>':'')+'<th>Tarifa</th><th class="num">Valor</th></tr></thead><tbody>'+filas+'</tbody></table>' +
+      '<div class="totales">' +
+        '<div class="fuerte"><span>Monto bruto (boleta de honorarios)</span><span class="mono">'+fmtMoneda(r.bruto,moneda)+'</span></div>' +
+        '<div><span>Retención '+fmtNumeroCL(r.retPct)+'%</span><span class="mono">− '+fmtMoneda(r.retencion,moneda)+'</span></div>' +
+        '<div class="fuerte"><span>Líquido a recibir</span><span class="mono">'+fmtMoneda(r.liquido,moneda)+'</span></div>' +
+      '</div>' +
+      (usaUF ? '<div class="nota">Valores pactados en UF, convertidos a pesos con la UF de '+fmtMoneda(state.config.valorUF,moneda)+'.</div>' : '') +
+      (r.faltaTarifa ? '<div class="aviso no-print">Hay atenciones de este mes sin tarifa asignada: no están sumadas en el monto. Revisa la tarifa del profesional antes de enviar este resumen.</div>' : '') +
+    '</div></div>';
+}
+function csvReporte(){
+  var p = psicoById(state.reporte.psicologoId); if(!p) return;
+  var r = resumenPsicologo(p, state.mes);
+  var head = ['Fecha','Hora','Empresa'].concat(state.incluirPacientes ? ['Paciente'] : []).concat(['Tarifa','Valor (pesos)']);
+  var rows = r.items.map(function(i){
+    return [fmtFecha(i.a.fecha), i.a.hora, nombreEmpresaRef(i.a)].concat(state.incluirPacientes ? [nombrePacienteRef(i.a)] : []).concat([i.t ? textoTarifa(i.t, state.config.moneda) : 'SIN TARIFA', i.valor]);
+  });
+  var pad = state.incluirPacientes ? 4 : 3;
+  function fila(etq, val){ var f = []; for(var k=0;k<pad;k++) f.push(''); f.push(etq); f.push(val); return f; }
+  rows.push(fila('Monto bruto', r.bruto), fila('Retención ' + r.retPct + '%', r.retencion), fila('Líquido', r.liquido));
+  descargar('reporte_' + nombreArchivo(p.nombre) + '_' + state.mes + '.csv', csvDe([head].concat(rows)));
+}
+
+// ---------- Atenciones ----------
+function atencionesFiltradas(){
+  var f = state.filtros;
+  var q = f.paciente.trim().toLowerCase();
+  return state.atenciones.filter(function(a){
+    if(f.psicologoId && a.psicologoId !== f.psicologoId) return false;
+    if(f.empresaId && a.empresaId !== f.empresaId) return false;
+    if(f.mes && a.fecha.slice(0,7) !== f.mes) return false;
+    if(f.desde && a.fecha < f.desde) return false;
+    if(f.hasta && a.fecha > f.hasta) return false;
+    if(q && nombrePacienteRef(a).toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }).sort(function(a,b){ return (b.fecha+b.hora).localeCompare(a.fecha+a.hora); });
+}
+function selectoresAtencion(form, prefijo){
+  var f = state[form], todos = form === 'formEditar';
+  var pacs = f.empresaId ? pacientesDeEmpresa(f.empresaId, !todos) : [];
+  var psicos = todos ? todosDe(state.psicologos) : activosDe(state.psicologos);
+  var emps = todos ? todosDe(state.empresas) : activosDe(state.empresas);
+  return '<div class="field-row cols-3" style="margin-top:0;">' +
+      '<div><label for="'+prefijo+'-fecha">Fecha</label><input type="date" id="'+prefijo+'-fecha" data-form="'+form+'" data-field="fecha" value="'+esc(f.fecha)+'" required></div>' +
+      '<div><label for="'+prefijo+'-hora">Hora</label><input type="time" id="'+prefijo+'-hora" data-form="'+form+'" data-field="hora" value="'+esc(f.hora)+'" required></div>' +
+      '<div><label for="'+prefijo+'-psico">Profesional</label><select id="'+prefijo+'-psico" data-form="'+form+'" data-field="psicologoId" required>'+opcionesSelect(psicos, f.psicologoId, 'Selecciona')+'</select></div>' +
+    '</div>' +
+    '<div class="field-row">' +
+      '<div><label for="'+prefijo+'-emp">Empresa</label><select id="'+prefijo+'-emp" data-form="'+form+'" data-field="empresaId" required>'+opcionesSelect(emps, f.empresaId, 'Selecciona una empresa')+'</select></div>' +
+      '<div><label for="'+prefijo+'-pac">Paciente</label><select id="'+prefijo+'-pac" data-form="'+form+'" data-field="pacienteId" '+(f.empresaId?'':'disabled')+' required>'+opcionesSelect(pacs, f.pacienteId, f.empresaId?'Selecciona un paciente':'Elige primero la empresa')+'</select></div>' +
+    '</div>' +
+    (f.empresaId && !pacs.length ? '<div class="hint">Esta empresa aún no tiene pacientes. Agrégalos en la pestaña Pacientes.</div>' : '');
+}
+function renderAtenciones(){
+  var f = state.filtros, lista = atencionesFiltradas();
+  var visibles = lista.slice(0, state.limiteAtenciones);
+  var sinBase = !state.psicologos.length || !state.empresas.length;
+
+  var alta = '<div class="card" style="margin-bottom:16px;">' +
+    '<div class="section-label" style="margin-top:0;">Registrar atención</div>' +
+    (sinBase ? '<div class="notice info" style="margin-bottom:0;">Para registrar atenciones necesitas al menos un profesional, una empresa y un paciente cargados.</div>' :
+    '<form data-action="guardar-atencion">' + selectoresAtencion('formAtencion','fa') +
+      '<div class="btn-row"><button type="submit" class="btn btn-primary">Guardar atención</button></div>' +
+      '<div class="hint">Al guardar se mantienen fecha, hora, profesional y empresa para cargar la siguiente más rápido.</div></form>') +
+  '</div>';
+
+  var filtros = '<div class="filtros">' +
+    '<div class="field-row cols-3">' +
+      '<div><label for="fc-psico">Profesional</label><select id="fc-psico" data-form="filtros" data-field="psicologoId">'+opcionesSelect(todosDe(state.psicologos), f.psicologoId, 'Todos')+'</select></div>' +
+      '<div><label for="fc-emp">Empresa</label><select id="fc-emp" data-form="filtros" data-field="empresaId">'+opcionesSelect(todosDe(state.empresas), f.empresaId, 'Todas')+'</select></div>' +
+      '<div><label for="fc-mes">Mes</label><input type="month" id="fc-mes" data-form="filtros" data-field="mes" value="'+esc(f.mes)+'"></div>' +
+    '</div>' +
+    '<div class="field-row cols-3" style="margin-top:10px;">' +
+      '<div><label for="fc-desde">Desde</label><input type="date" id="fc-desde" data-form="filtros" data-field="desde" value="'+esc(f.desde)+'"></div>' +
+      '<div><label for="fc-hasta">Hasta</label><input type="date" id="fc-hasta" data-form="filtros" data-field="hasta" value="'+esc(f.hasta)+'"></div>' +
+      '<div><label for="fc-pac">Paciente</label><input type="text" id="fc-pac" data-form="filtros" data-field="paciente" value="'+esc(f.paciente)+'" placeholder="Buscar por nombre"></div>' +
+    '</div>' +
+    '<div class="filtros-foot"><span class="count-tag">'+lista.length+' atención'+(lista.length===1?'':'es')+'</span>' +
+      '<div style="display:flex;gap:8px;"><button class="btn btn-ghost" data-action="exportar-atenciones" type="button">Descargar CSV</button><button class="btn btn-ghost" data-action="limpiar-filtros" type="button">Limpiar filtros</button></div></div>' +
+  '</div>';
+
+  var items = visibles.map(function(a){
+    if(state.editandoAtencionId === a.id){
+      return '<div class="visita"><form data-action="actualizar-atencion" data-id="'+a.id+'">' + selectoresAtencion('formEditar','fe') +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-edicion">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambios</button></div></form></div>';
+    }
+    return '<div class="visita"><div class="visita-top"><div>' +
+      '<div class="visita-fecha">'+fmtFecha(a.fecha)+' · '+esc(a.hora)+'</div>' +
+      '<div class="visita-paciente">'+esc(nombrePacienteRef(a))+'</div>' +
+      '<div class="visita-meta">'+esc(nombreEmpresaRef(a))+'</div>' +
+      '<span class="visita-psico">'+esc(nombrePsico(a))+'</span></div>' +
+      '<div class="visita-actions"><button class="btn btn-ghost" data-action="editar-atencion" data-id="'+a.id+'" type="button">Editar</button>' +
+      '<button class="btn btn-danger" data-action="eliminar-atencion" data-id="'+a.id+'" type="button">Eliminar</button></div></div></div>';
+  }).join('');
+  var cuerpo = lista.length === 0 ? '<div class="empty"><span class="big">📭</span>No hay atenciones con estos filtros.</div>' : items +
+    (lista.length > visibles.length ? '<div style="text-align:center;margin-top:12px;"><button class="btn btn-secondary" data-action="mostrar-mas" type="button">Mostrar más ('+(lista.length-visibles.length)+' restantes)</button></div>' : '');
+  return '<div class="wrap">' + alta + filtros + cuerpo + '</div>';
+}
+function exportarAtenciones(){
+  var head = ['Fecha','Hora','Profesional','Empresa','Paciente'];
+  var rows = atencionesFiltradas().map(function(a){ return [fmtFecha(a.fecha), a.hora, nombrePsico(a), nombreEmpresaRef(a), nombrePacienteRef(a)]; });
+  descargar('atenciones.csv', csvDe([head].concat(rows)));
+}
+async function onGuardarAtencion(){
+  var f = state.formAtencion;
+  var ps = psicoById(f.psicologoId), em = empresaById(f.empresaId), pa = pacienteById(f.pacienteId);
+  if(!f.fecha || !f.hora || !ps || !em || !pa){ mostrarError('Completa fecha, hora, profesional, empresa y paciente.'); return; }
+  var ok = await conError(async function(){
+    await state.backend.agregar('atenciones', { psicologoId:ps.id, psicologoNombre:ps.nombre, fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
+    await recargar('atenciones');
+    return true;
+  }, 'No se pudo guardar');
+  if(ok){ state.formAtencion.pacienteId = ''; mostrarToast('Atención guardada'); }
+}
+async function onActualizarAtencion(id){
+  var f = state.formEditar;
+  var ps = psicoById(f.psicologoId), em = empresaById(f.empresaId), pa = pacienteById(f.pacienteId);
+  if(!f.fecha || !f.hora || !ps || !em || !pa){ mostrarError('Completa todos los campos.'); return; }
+  var ok = await conError(async function(){
+    await state.backend.actualizar('atenciones', id, { psicologoId:ps.id, psicologoNombre:ps.nombre, fecha:f.fecha, hora:f.hora, empresaId:em.id, empresaNombre:em.nombre, pacienteId:pa.id, pacienteNombre:pa.nombre });
+    await recargar('atenciones');
+    return true;
+  }, 'No se pudo actualizar');
+  if(ok){ state.editandoAtencionId = null; mostrarToast('Cambios guardados'); }
+}
+
+// ---------- Profesionales ----------
+function resumenBanco(p){
+  var partes = [p.banco, p.tipoCuenta, p.numeroCuenta ? 'N° ' + p.numeroCuenta : '', p.rut ? 'RUT ' + p.rut : '', p.email].filter(Boolean);
+  return partes.length ? partes.join(' · ') : 'Sin datos de transferencia';
+}
+function renderPsicologos(){
+  var np = state.formNuevoPsicologo, moneda = state.config.moneda;
+  var alta = '<div class="card" style="margin-bottom:16px;"><form data-action="agregar-psicologo">' +
+    '<div class="section-label" style="margin-top:0;">Agregar profesional</div>' +
+    LISTA_PROFESIONES +
+    '<div class="field-row" style="margin-top:0;">' +
+      '<div><label for="np-nombre">Nombre</label><input type="text" id="np-nombre" data-form="formNuevoPsicologo" data-field="nombre" value="'+esc(np.nombre)+'" required></div>' +
+      '<div><label for="np-prof">Profesión</label><input type="text" id="np-prof" list="lista-profesiones" data-form="formNuevoPsicologo" data-field="profesion" value="'+esc(np.profesion)+'" placeholder="Ej: Psicóloga" required></div>' +
+    '</div>' +
+    '<div class="field-row">' +
+      '<div><label for="np-rut">RUT</label><input type="text" id="np-rut" data-form="formNuevoPsicologo" data-field="rut" value="'+esc(np.rut)+'" placeholder="12.345.678-9"></div>' +
+      '<div><label for="np-tel">Teléfono (opcional)</label><input type="text" id="np-tel" data-form="formNuevoPsicologo" data-field="telefono" value="'+esc(np.telefono)+'"></div>' +
+    '</div>' +
+    '<div class="field-row cols-3">' +
+      '<div><label for="np-tipo">Tipo de tarifa</label><select id="np-tipo" data-form="formNuevoPsicologo" data-field="tipoTarifa"><option value="clp"'+(np.tipoTarifa!=='uf'?' selected':'')+'>Monto fijo (pesos)</option><option value="uf"'+(np.tipoTarifa==='uf'?' selected':'')+'>UF por atención</option></select></div>' +
+      '<div><label for="np-tarifa">Tarifa por atención</label><input type="text" inputmode="decimal" id="np-tarifa" data-form="formNuevoPsicologo" data-field="tarifa" value="'+esc(np.tarifa)+'" placeholder="0" required></div>' +
+      '<div><label for="np-vig">Tarifa vigente desde</label><input type="date" id="np-vig" data-form="formNuevoPsicologo" data-field="vigenteDesde" value="'+esc(np.vigenteDesde)+'" required></div>' +
+    '</div>' +
+    '<div class="hint">Si el acuerdo rige desde antes, pon la fecha real: las atenciones anteriores a esa fecha quedan sin tarifa. Los datos de transferencia se completan con "Editar datos".</div>' +
+    '<div class="btn-row"><button type="submit" class="btn btn-primary">Agregar</button></div></form></div>';
+
+  var lista = todosDe(state.psicologos);
+  var cuerpo = lista.length === 0 ? '<div class="empty"><span class="big">🧑‍⚕️</span>Aún no has agregado profesionales.</div>' : lista.map(function(p){
+    var actual = tarifaActual(p.id), historial = historialTarifas(p.id);
+    var resumen = actual ? textoTarifa(actual, moneda) + ' · desde ' + fmtFecha(actual.vigenteDesde) : 'Sin tarifa asignada';
+    var fila = '<div class="list-row'+(p.activo===false?' inactivo':'')+'"><div class="info"><div class="nombre">'+esc(p.nombre)+'</div>' +
+      '<div class="tel">'+esc(p.profesion || 'Sin profesión indicada')+'</div><div class="tel">'+esc(resumen)+'</div><div class="tel">'+esc(resumenBanco(p))+'</div></div>' +
+      '<button class="btn btn-secondary" data-action="abrir-editor-tarifa" data-id="'+p.id+'" type="button">'+(actual?'Editar tarifa':'Agregar tarifa')+'</button>' +
+      '<button class="btn btn-secondary" data-action="editar-psicologo" data-id="'+p.id+'" type="button">Editar datos</button>' +
+      '<label class="switch"><input type="checkbox" data-action="toggle-activo" data-tabla="psicologos" data-id="'+p.id+'" '+(p.activo!==false?'checked':'')+'>Activo</label>' +
+      '<button class="btn btn-danger" data-action="eliminar-psicologo" data-id="'+p.id+'" type="button">Eliminar</button></div>';
+    var panel = '';
+    if(state.editandoPsicologoId === p.id){
+      var fp = state.formPsicologo;
+      panel += '<div class="sub-panel"><form data-action="guardar-psicologo" data-id="'+p.id+'">' +
+        '<div class="field-row" style="margin-top:0;">' +
+          '<div><label for="ep-nombre">Nombre</label><input type="text" id="ep-nombre" data-form="formPsicologo" data-field="nombre" value="'+esc(fp.nombre)+'" required></div>' +
+          '<div><label for="ep-prof">Profesión</label><input type="text" id="ep-prof" list="lista-profesiones" data-form="formPsicologo" data-field="profesion" value="'+esc(fp.profesion)+'" placeholder="Ej: Psicóloga"></div>' +
+        '</div>' +
+        '<div class="field-row">' +
+          '<div><label for="ep-rut">RUT</label><input type="text" id="ep-rut" data-form="formPsicologo" data-field="rut" value="'+esc(fp.rut)+'"></div>' +
+          '<div><label for="ep-tel">Teléfono</label><input type="text" id="ep-tel" data-form="formPsicologo" data-field="telefono" value="'+esc(fp.telefono)+'"></div>' +
+        '</div>' +
+        '<div class="section-label">Datos de transferencia</div>' +
+        '<div class="field-row cols-3" style="margin-top:0;">' +
+          '<div><label for="ep-banco">Banco</label><input type="text" id="ep-banco" data-form="formPsicologo" data-field="banco" value="'+esc(fp.banco)+'" placeholder="Ej: Banco Estado"></div>' +
+          '<div><label for="ep-tcta">Tipo de cuenta</label><select id="ep-tcta" data-form="formPsicologo" data-field="tipoCuenta"><option value="">Selecciona</option>'+TIPOS_CUENTA.map(function(t){ return '<option value="'+t+'"'+(fp.tipoCuenta===t?' selected':'')+'>'+t+'</option>'; }).join('')+'</select></div>' +
+          '<div><label for="ep-ncta">N° de cuenta</label><input type="text" id="ep-ncta" data-form="formPsicologo" data-field="numeroCuenta" value="'+esc(fp.numeroCuenta)+'"></div>' +
+        '</div>' +
+        '<label for="ep-email">Email (para el comprobante)</label><input type="text" id="ep-email" data-form="formPsicologo" data-field="email" value="'+esc(fp.email)+'">' +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-psicologo">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></div>';
+    }
+    if(state.editandoTarifaPsicologoId === p.id) panel += renderEditorTarifa(p, actual);
+    if(historial.length > 1){
+      panel += '<div class="hint" style="padding-left:2px;">Historial: ' + historial.map(function(t){
+        return esc(textoTarifa(t, moneda)) + ' desde ' + fmtFecha(t.vigenteDesde) + ' <button class="btn-ghost" style="border:none;background:none;cursor:pointer;padding:0 4px;font-size:.72rem;color:var(--ink-muted);" data-action="eliminar-tarifa" data-id="'+t.id+'" type="button">eliminar</button>';
+      }).join(' · ') + '</div>';
+    }
+    return '<div class="stack" style="gap:8px;">' + fila + panel + '</div>';
+  }).join('');
+  return '<div class="wrap">' + alta + '<div class="stack">' + cuerpo + '</div></div>';
+}
+function renderEditorTarifa(p, actual){
+  var ft = state.formTarifa, moneda = state.config.moneda;
+  var valor = parseNumeroCL(ft.tarifa);
+  var pesos = ft.tipo === 'uf' ? valor * (state.config.valorUF||0) : valor;
+  var preview = '<div class="hint">Equivale a <b>'+fmtMoneda(pesos, moneda)+' por atención</b>'+(ft.tipo==='uf' && state.config.valorUF ? ' (UF a '+fmtMoneda(state.config.valorUF, moneda)+')' : '')+'. Revisa que el tipo (pesos o UF) sea el correcto.</div>';
+  var tipoSel = '<select id="tf-tipo" data-form="formTarifa" data-field="tipo"><option value="clp"'+(ft.tipo!=='uf'?' selected':'')+'>Monto fijo (pesos)</option><option value="uf"'+(ft.tipo==='uf'?' selected':'')+'>UF por atención</option></select>';
+  if(state.formTarifaModo === 'programar'){
+    return '<div class="sub-panel"><form data-action="guardar-nueva-tarifa" data-id="'+p.id+'">' +
+      '<div class="section-label" style="margin-top:0;">Cambio de tarifa desde una fecha</div>' +
+      '<div class="field-row cols-3" style="margin-top:0;"><div><label for="tf-tipo">Tipo</label>'+tipoSel+'</div>' +
+      '<div><label for="tf-tarifa">Nueva tarifa</label><input type="text" inputmode="decimal" id="tf-tarifa" data-form="formTarifa" data-field="tarifa" value="'+esc(ft.tarifa)+'" placeholder="0" required></div>' +
+      '<div><label for="tf-vig">Vigente desde</label><input type="date" id="tf-vig" data-form="formTarifa" data-field="vigenteDesde" value="'+esc(ft.vigenteDesde)+'" required></div></div>' + preview +
+      '<div class="hint">Las atenciones anteriores a esa fecha siguen con la tarifa anterior.</div>' +
+      '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-tarifa">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambio</button></div>' +
+      (actual ? '<div style="margin-top:10px;"><button type="button" class="btn btn-ghost" data-action="modo-editar-tarifa" data-id="'+p.id+'">Mejor editar la tarifa actual directamente</button></div>' : '') + '</form></div>';
+  }
+  return '<div class="sub-panel"><form data-action="guardar-edicion-tarifa" data-id="'+(actual?actual.id:'')+'">' +
+    '<div class="section-label" style="margin-top:0;">Editar tarifa actual</div>' +
+    '<div class="field-row" style="margin-top:0;"><div><label for="tf-tipo">Tipo</label>'+tipoSel+'</div>' +
+    '<div><label for="tf-tarifa">Tarifa</label><input type="text" inputmode="decimal" id="tf-tarifa" data-form="formTarifa" data-field="tarifa" value="'+esc(ft.tarifa)+'" placeholder="0" required></div></div>' + preview +
+    '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-tarifa">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambios</button></div>' +
+    '<div style="margin-top:10px;"><button type="button" class="btn btn-ghost" data-action="modo-programar-tarifa" data-id="'+p.id+'">¿Rige solo desde una fecha? Prográmalo aquí</button></div></form></div>';
+}
+async function onAgregarPsicologo(){
+  var f = state.formNuevoPsicologo, nombre = f.nombre.trim();
+  if(!nombre || !f.vigenteDesde) return;
+  var ok = await conError(async function(){
+    var p = await state.backend.agregar('psicologos', { nombre:nombre, profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), activo:true, banco:'', tipoCuenta:'', numeroCuenta:'', email:'' });
+    await state.backend.agregar('tarifas', { psicologoId:p.id, tarifa:parseNumeroCL(f.tarifa), tipo:f.tipoTarifa, vigenteDesde:f.vigenteDesde });
+    await Promise.all([recargar('psicologos'), recargar('tarifas')]);
+    return true;
+  }, 'No se pudo agregar');
+  if(ok){ state.formNuevoPsicologo = { nombre:'', profesion:'', rut:'', telefono:'', tipoTarifa:'clp', tarifa:'', vigenteDesde: hoyLocal() }; mostrarToast('Profesional agregado'); }
+}
+async function onGuardarPsicologo(id){
+  var f = state.formPsicologo;
+  if(!f.nombre.trim()) return;
+  var ok = await conError(async function(){
+    await state.backend.actualizar('psicologos', id, { nombre:f.nombre.trim(), profesion:f.profesion.trim(), rut:f.rut.trim(), telefono:f.telefono.trim(), banco:f.banco.trim(), tipoCuenta:f.tipoCuenta, numeroCuenta:f.numeroCuenta.trim(), email:f.email.trim() });
+    await recargar('psicologos');
+    return true;
+  }, 'No se pudo guardar');
+  if(ok){ state.editandoPsicologoId = null; mostrarToast('Datos guardados'); }
+}
+async function onGuardarEdicionTarifa(tarifaId){
+  if(!tarifaId) return;
+  var ok = await conError(async function(){
+    await state.backend.actualizar('tarifas', tarifaId, { tarifa:parseNumeroCL(state.formTarifa.tarifa), tipo:state.formTarifa.tipo });
+    await recargar('tarifas');
+    return true;
+  }, 'No se pudo guardar');
+  if(ok){ state.editandoTarifaPsicologoId = null; mostrarToast('Tarifa actualizada'); }
+}
+async function onGuardarNuevaTarifa(psicologoId){
+  var f = state.formTarifa;
+  if(!f.vigenteDesde) return;
+  var ok = await conError(async function(){
+    await state.backend.agregar('tarifas', { psicologoId:psicologoId, tarifa:parseNumeroCL(f.tarifa), tipo:f.tipo, vigenteDesde:f.vigenteDesde });
+    await recargar('tarifas');
+    return true;
+  }, 'No se pudo guardar');
+  if(ok){ state.editandoTarifaPsicologoId = null; mostrarToast('Tarifa guardada'); }
+}
+
+// ---------- Empresas ----------
+function renderEmpresas(){
+  var ne = state.formNuevaEmpresa;
+  var alta = '<div class="card" style="margin-bottom:16px;"><form data-action="agregar-empresa"><div class="section-label" style="margin-top:0;">Agregar empresa</div>' +
+    '<label for="ne-nombre">Nombre de la empresa</label><input type="text" id="ne-nombre" data-form="formNuevaEmpresa" data-field="nombre" value="'+esc(ne.nombre)+'" required>' +
+    '<div class="btn-row"><button type="submit" class="btn btn-primary">Agregar</button></div></form></div>';
+  var lista = todosDe(state.empresas);
+  var cuerpo = lista.length === 0 ? '<div class="empty"><span class="big">🏢</span>Aún no has agregado empresas.</div>' : lista.map(function(e){
+    var n = pacientesDeEmpresa(e.id, false).length;
+    var fila = '<div class="list-row'+(e.activo===false?' inactivo':'')+'"><div class="info"><div class="nombre">'+esc(e.nombre)+'</div><div class="tel">'+n+' paciente'+(n===1?'':'s')+'</div></div>' +
+      '<button class="btn btn-secondary" data-action="editar-empresa" data-id="'+e.id+'" type="button">Editar</button>' +
+      '<label class="switch"><input type="checkbox" data-action="toggle-activo" data-tabla="empresas" data-id="'+e.id+'" '+(e.activo!==false?'checked':'')+'>Activa</label>' +
+      '<button class="btn btn-danger" data-action="eliminar-empresa" data-id="'+e.id+'" type="button">Eliminar</button></div>';
+    var panel = state.editandoEmpresaId === e.id
+      ? '<div class="sub-panel"><form data-action="guardar-empresa" data-id="'+e.id+'"><label for="ee-nombre">Nombre</label><input type="text" id="ee-nombre" data-form="formEmpresa" data-field="nombre" value="'+esc(state.formEmpresa.nombre)+'" required>' +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-empresa">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></div>' : '';
+    return '<div class="stack" style="gap:8px;">' + fila + panel + '</div>';
+  }).join('');
+  return '<div class="wrap narrow">' + alta + '<div class="stack">' + cuerpo + '</div></div>';
+}
+async function onAgregarEmpresa(){
+  var nombre = state.formNuevaEmpresa.nombre.trim();
+  if(!nombre) return;
+  var ok = await conError(async function(){ await state.backend.agregar('empresas', { nombre:nombre, activo:true }); await recargar('empresas'); return true; }, 'No se pudo agregar');
+  if(ok){ state.formNuevaEmpresa = { nombre:'' }; mostrarToast('Empresa agregada'); }
+}
+async function onGuardarEmpresa(id){
+  var nombre = state.formEmpresa.nombre.trim();
+  if(!nombre) return;
+  var ok = await conError(async function(){ await state.backend.actualizar('empresas', id, { nombre:nombre }); await recargar('empresas'); return true; }, 'No se pudo guardar');
+  if(ok){ state.editandoEmpresaId = null; mostrarToast('Empresa actualizada'); }
+}
+
+// ---------- Pacientes ----------
+function renderPacientes(){
+  var empresas = todosDe(state.empresas), filtroId = state.pacientesFiltroEmpresaId;
+  if(!empresas.length) return '<div class="wrap narrow"><div class="empty"><span class="big">🏢</span>Primero agrega al menos una empresa en la pestaña Empresas.</div></div>';
+  var npac = state.formNuevoPaciente;
+  var lista = (filtroId ? pacientesDeEmpresa(filtroId, false) : todosDe(state.pacientes));
+  var alta = '<div class="card" style="margin-bottom:16px;"><form data-action="agregar-paciente"><div class="section-label" style="margin-top:0;">Agregar paciente</div>' +
+    '<div class="field-row" style="margin-top:0;"><div><label for="npac-emp">Empresa</label><select id="npac-emp" data-form="formNuevoPaciente" data-field="empresaId" required>'+opcionesSelect(empresas, npac.empresaId, 'Selecciona una empresa')+'</select></div>' +
+    '<div><label for="npac-nombre">Nombre del paciente</label><input type="text" id="npac-nombre" data-form="formNuevoPaciente" data-field="nombre" value="'+esc(npac.nombre)+'" required></div></div>' +
+    '<div class="btn-row"><button type="submit" class="btn btn-primary">Agregar</button></div></form></div>';
+  var filtro = '<div class="filtros"><label for="pf-emp">Filtrar por empresa</label><select id="pf-emp" data-action="filtro-pacientes">'+opcionesSelect(empresas, filtroId, 'Todas las empresas')+'</select>' +
+    '<div class="filtros-foot"><span class="count-tag">'+lista.length+' paciente'+(lista.length===1?'':'s')+'</span></div></div>';
+  var cuerpo = lista.length === 0 ? '<div class="empty"><span class="big">🧑</span>No hay pacientes con este filtro.</div>' : lista.slice(0, 300).map(function(p){
+    var fila = '<div class="list-row'+(p.activo===false?' inactivo':'')+'"><div class="info"><div class="nombre">'+esc(p.nombre)+'</div><div class="tel">'+esc(nombreEmpresaRef(p))+'</div></div>' +
+      '<button class="btn btn-secondary" data-action="editar-paciente" data-id="'+p.id+'" type="button">Editar</button>' +
+      '<label class="switch"><input type="checkbox" data-action="toggle-activo" data-tabla="pacientes" data-id="'+p.id+'" '+(p.activo!==false?'checked':'')+'>Activo</label>' +
+      '<button class="btn btn-danger" data-action="eliminar-paciente" data-id="'+p.id+'" type="button">Eliminar</button></div>';
+    var panel = state.editandoPacienteId === p.id
+      ? '<div class="sub-panel"><form data-action="guardar-paciente" data-id="'+p.id+'"><div class="field-row" style="margin-top:0;"><div><label for="ep2-nombre">Nombre</label><input type="text" id="ep2-nombre" data-form="formPaciente" data-field="nombre" value="'+esc(state.formPaciente.nombre)+'" required></div>' +
+        '<div><label for="ep2-emp">Empresa</label><select id="ep2-emp" data-form="formPaciente" data-field="empresaId" required>'+opcionesSelect(empresas, state.formPaciente.empresaId, 'Selecciona')+'</select></div></div>' +
+        '<div class="btn-row"><button type="button" class="btn btn-secondary" data-action="cancelar-paciente">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div></form></div>' : '';
+    return '<div class="stack" style="gap:8px;">' + fila + panel + '</div>';
+  }).join('') + (lista.length > 300 ? '<div class="hint" style="text-align:center;margin-top:10px;">Se muestran los primeros 300. Usa el filtro por empresa para ver el resto.</div>' : '');
+  return '<div class="wrap narrow">' + alta + filtro + '<div class="stack">' + cuerpo + '</div></div>';
+}
+async function onAgregarPaciente(){
+  var f = state.formNuevoPaciente, emp = empresaById(f.empresaId), nombre = f.nombre.trim();
+  if(!emp || !nombre) return;
+  var ok = await conError(async function(){ await state.backend.agregar('pacientes', { nombre:nombre, empresaId:emp.id, empresaNombre:emp.nombre, activo:true }); await recargar('pacientes'); return true; }, 'No se pudo agregar');
+  if(ok){ state.formNuevoPaciente.nombre = ''; mostrarToast('Paciente agregado'); }
+}
+async function onGuardarPaciente(id){
+  var f = state.formPaciente, emp = empresaById(f.empresaId), nombre = f.nombre.trim();
+  if(!emp || !nombre) return;
+  var ok = await conError(async function(){ await state.backend.actualizar('pacientes', id, { nombre:nombre, empresaId:emp.id, empresaNombre:emp.nombre }); await recargar('pacientes'); return true; }, 'No se pudo guardar');
+  if(ok){ state.editandoPacienteId = null; mostrarToast('Paciente actualizado'); }
+}
+
+// ---------- Configuración ----------
+function renderConfig(){
+  var cf = state.formConfig;
+  return '<div class="wrap narrow"><div class="card"><form data-action="guardar-config">' +
+    '<label for="cfg-ret">Retención de boletas de honorarios (%)</label><input type="text" inputmode="decimal" id="cfg-ret" data-form="formConfig" data-field="retencionPct" value="'+esc(cf.retencionPct)+'">' +
+    '<div class="hint">Porcentaje que se descuenta del bruto para calcular el líquido. Se puede escribir con coma (ej: 15,25).</div>' +
+    '<label for="cfg-uf">Valor UF (en pesos)</label><input type="text" inputmode="decimal" id="cfg-uf" data-form="formConfig" data-field="valorUF" value="'+esc(cf.valorUF)+'" placeholder="0">' +
+    '<div class="hint">Convierte a pesos las tarifas pactadas en UF. También se puede actualizar desde la pestaña Liquidación.</div>' +
+    '<label for="cfg-emisor">Nombre que aparece en los reportes (opcional)</label><input type="text" id="cfg-emisor" data-form="formConfig" data-field="emisor" value="'+esc(cf.emisor)+'" placeholder="Ej: Wellive · Programa EAP">' +
+    '<label for="cfg-moneda">Símbolo de moneda</label><input type="text" id="cfg-moneda" data-form="formConfig" data-field="moneda" value="'+esc(cf.moneda)+'" placeholder="$">' +
+    '<div class="btn-row"><button type="submit" class="btn btn-primary">Guardar configuración</button></div></form></div></div>';
+}
+async function guardarConfigObj(c, msg){
+  var ok = await conError(async function(){ await state.backend.guardarConfig(c); await recargarConfig(); return true; }, 'No se pudo guardar');
+  if(ok) mostrarToast(msg);
+  return ok;
+}
+async function onGuardarConfig(){
+  var cf = state.formConfig;
+  await guardarConfigObj({ retencionPct:parseNumeroCL(cf.retencionPct), moneda:cf.moneda.trim() || '$', valorUF:parseNumeroCL(cf.valorUF), emisor:cf.emisor.trim() }, 'Configuración guardada');
+}
+async function onTraerUF(){
+  try{
+    var ctrl = new AbortController(), to = setTimeout(function(){ ctrl.abort(); }, 10000);
+    var r = await fetch('https://mindicador.cl/api/uf', { signal: ctrl.signal });
+    clearTimeout(to);
+    var j = await r.json(), v = j && j.serie && j.serie[0] && j.serie[0].valor;
+    if(!v) throw new Error('sin dato');
+    var c = Object.assign({}, state.config, { valorUF: v });
+    await guardarConfigObj(c, 'UF actualizada: ' + fmtMoneda(v, state.config.moneda));
+  }catch(e){
+    mostrarError('No se pudo traer la UF automáticamente. Escríbela a mano (la encuentras en bcentral.cl).');
+  }
+}
+async function onActualizarValorUF(val){
+  await guardarConfigObj(Object.assign({}, state.config, { valorUF: parseNumeroCL(val) }), 'Valor UF actualizado');
+}
+
+// ---------- Eliminación con confirmación ----------
+async function onConfirmarEliminar(){
+  var c = state.confirmDialog;
+  if(!c) return;
+  state.confirmDialog = null;
+  var tabla = { atencion:'atenciones', psicologo:'psicologos', empresa:'empresas', paciente:'pacientes', tarifa:'tarifas' }[c.tipo];
+  if(!tabla){ rerender(); return; }
+  var ok = await conError(async function(){
+    await state.backend.eliminar(tabla, c.id);
+    if(c.tipo === 'psicologo'){
+      var tars = state.tarifasHistorial.filter(function(t){ return t.psicologoId === c.id; });
+      await Promise.all(tars.map(function(t){ return state.backend.eliminar('tarifas', t.id); }));
+      await recargar('tarifas');
+    }
+    await recargar(tabla);
+    return true;
+  }, 'No se pudo eliminar');
+  if(ok) mostrarToast('Eliminado');
+}
+
+// ---------- Eventos ----------
+var HOOKS = {
+  formAtencion: function(f){ if(f==='empresaId') state.formAtencion.pacienteId = ''; },
+  formEditar: function(f){ if(f==='empresaId') state.formEditar.pacienteId = ''; },
+  filtros: function(){ state.limiteAtenciones = 200; }
+};
+function sembrarFormConfig(){
+  var c = state.config;
+  state.formConfig = { retencionPct: fmtNumeroCL(c.retencionPct), moneda: c.moneda || '$', valorUF: fmtNumeroCL(c.valorUF), emisor: c.emisor || '' };
+}
+function abrirEditorTarifa(id){
+  var act = tarifaActual(id);
+  state.editandoTarifaPsicologoId = id;
+  state.formTarifaModo = act ? 'editar' : 'programar';
+  state.formTarifa = act ? { tipo:act.tipo, tarifa:fmtNumeroCL(act.tarifa), vigenteDesde:hoyLocal() } : { tipo:'clp', tarifa:'', vigenteDesde:hoyLocal() };
+}
+
+root.addEventListener('click', function(e){
+  var t = e.target.closest('[data-action]');
+  if(!t || t.tagName === 'FORM' || t.tagName === 'INPUT' || t.tagName === 'SELECT') return;
+  if(t.classList.contains('modal-overlay') && e.target.closest('.modal-box')) return;
+  var a = t.dataset.action, id = t.dataset.id;
+  switch(a){
+    case 'salir': return onSalir();
+    case 'set-tab':
+      state.tab = t.dataset.tab; state.reporte = null;
+      if(state.tab === 'config') sembrarFormConfig();
+      return rerender();
+    case 'cerrar-error': state.errorMsg = null; return rerender();
+    case 'cancelar-confirm': state.confirmDialog = null; return rerender();
+    case 'confirmar-eliminar': return onConfirmarEliminar();
+    // liquidación / reportes
+    case 'traer-uf': return onTraerUF();
+    case 'exportar-resumen': return exportarResumen();
+    case 'exportar-detalle-mes': return exportarDetalleMes();
+    case 'ir-a-atenciones':
+      state.filtros = { psicologoId:id, empresaId:'', paciente:'', mes:state.mes, desde:'', hasta:'' }; state.limiteAtenciones = 200; state.tab = 'atenciones'; return rerender();
+    case 'abrir-reporte': state.reporte = { psicologoId:id }; window.scrollTo(0,0); return rerender();
+    case 'cerrar-reporte': state.reporte = null; return rerender();
+    case 'imprimir-reporte': return window.print();
+    case 'csv-reporte': return csvReporte();
+    // atenciones
+    case 'editar-atencion':
+      var at = porId(state.atenciones, id); if(!at) return;
+      state.editandoAtencionId = id;
+      state.formEditar = { fecha:at.fecha, hora:at.hora, psicologoId:at.psicologoId, empresaId:at.empresaId, pacienteId:at.pacienteId };
+      return rerender();
+    case 'cancelar-edicion': state.editandoAtencionId = null; return rerender();
+    case 'eliminar-atencion': return pedirConfirmacion('atencion', id, '¿Eliminar esta atención? No se puede deshacer.');
+    case 'mostrar-mas': state.limiteAtenciones += 200; return rerender();
+    case 'limpiar-filtros': state.filtros = { psicologoId:'', empresaId:'', paciente:'', mes:'', desde:'', hasta:'' }; state.limiteAtenciones = 200; return rerender();
+    case 'exportar-atenciones': return exportarAtenciones();
+    // psicólogos
+    case 'editar-psicologo':
+      var p = psicoById(id); if(!p) return;
+      state.editandoPsicologoId = id;
+      state.formPsicologo = { nombre:p.nombre, profesion:p.profesion, rut:p.rut, telefono:p.telefono, banco:p.banco, tipoCuenta:p.tipoCuenta, numeroCuenta:p.numeroCuenta, email:p.email };
+      return rerender();
+    case 'cancelar-psicologo': state.editandoPsicologoId = null; return rerender();
+    case 'abrir-editor-tarifa': abrirEditorTarifa(id); return rerender();
+    case 'modo-editar-tarifa':
+      var ae = tarifaActual(id); state.formTarifaModo = 'editar';
+      state.formTarifa = ae ? { tipo:ae.tipo, tarifa:fmtNumeroCL(ae.tarifa), vigenteDesde:hoyLocal() } : { tipo:'clp', tarifa:'', vigenteDesde:hoyLocal() };
+      return rerender();
+    case 'modo-programar-tarifa':
+      var ap = tarifaActual(id); state.formTarifaModo = 'programar';
+      state.formTarifa = { tipo: ap ? ap.tipo : 'clp', tarifa:'', vigenteDesde:hoyLocal() };
+      return rerender();
+    case 'cancelar-tarifa': state.editandoTarifaPsicologoId = null; return rerender();
+    case 'eliminar-tarifa': return pedirConfirmacion('tarifa', id, '¿Eliminar este registro de tarifa? Como la liquidación se calcula al momento de verla, puede cambiar el cálculo de meses pasados.');
+    case 'eliminar-psicologo': return pedirConfirmacion('psicologo', id, '¿Eliminar este profesional y sus tarifas? Sus atenciones ya registradas se conservan.');
+    // empresas / pacientes
+    case 'editar-empresa': var em = empresaById(id); if(!em) return; state.editandoEmpresaId = id; state.formEmpresa = { nombre:em.nombre }; return rerender();
+    case 'cancelar-empresa': state.editandoEmpresaId = null; return rerender();
+    case 'eliminar-empresa': return pedirConfirmacion('empresa', id, '¿Eliminar esta empresa? Sus pacientes y atenciones ya registradas se conservan.');
+    case 'editar-paciente': var pa = pacienteById(id); if(!pa) return; state.editandoPacienteId = id; state.formPaciente = { nombre:pa.nombre, empresaId:pa.empresaId }; return rerender();
+    case 'cancelar-paciente': state.editandoPacienteId = null; return rerender();
+    case 'eliminar-paciente': return pedirConfirmacion('paciente', id, '¿Eliminar este paciente? Las atenciones ya registradas se conservan.');
+  }
+});
+
+root.addEventListener('submit', function(e){
+  var t = e.target.closest('form[data-action]');
+  if(!t) return;
+  e.preventDefault();
+  var a = t.dataset.action, id = t.dataset.id;
+  switch(a){
+    case 'login': return onLogin();
+    case 'guardar-atencion': return onGuardarAtencion();
+    case 'actualizar-atencion': return onActualizarAtencion(id);
+    case 'agregar-psicologo': return onAgregarPsicologo();
+    case 'guardar-psicologo': return onGuardarPsicologo(id);
+    case 'guardar-edicion-tarifa': return onGuardarEdicionTarifa(id);
+    case 'guardar-nueva-tarifa': return onGuardarNuevaTarifa(id);
+    case 'agregar-empresa': return onAgregarEmpresa();
+    case 'guardar-empresa': return onGuardarEmpresa(id);
+    case 'agregar-paciente': return onAgregarPaciente();
+    case 'guardar-paciente': return onGuardarPaciente(id);
+    case 'guardar-config': return onGuardarConfig();
+  }
+});
+
+root.addEventListener('input', function(e){
+  var t = e.target.closest('[data-form]');
+  if(!t) return;
+  var form = t.dataset.form, field = t.dataset.field;
+  if(form === 'login'){ state.login[field] = t.value; return; }
+  if(!state[form]) return;
+  state[form][field] = t.value;
+  if(HOOKS[form]) HOOKS[form](field);
+  rerender();
+});
+
+root.addEventListener('change', function(e){
+  var t = e.target;
+  var a = t.dataset && t.dataset.action;
+  if(!a) return;
+  switch(a){
+    case 'set-mes': state.mes = t.value || mesActual(); return rerender();
+    case 'quick-valor-uf': return onActualizarValorUF(t.value);
+    case 'filtro-pacientes': state.pacientesFiltroEmpresaId = t.value; return rerender();
+    case 'toggle-incluir-pacientes': state.incluirPacientes = t.checked; return rerender();
+    case 'toggle-activo':
+      return conError(async function(){
+        await state.backend.actualizar(t.dataset.tabla, t.dataset.id, { activo: t.checked });
+        await recargar(t.dataset.tabla);
+      }, 'No se pudo actualizar');
+  }
+});
+
+iniciar().catch(function(e){ console.error(e); state.authListo = true; mostrarError('Error al iniciar: ' + (e && e.message)); });
+rerender();
+})();
+</script>
+</body>
+</html>
